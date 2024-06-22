@@ -5,6 +5,12 @@ const bodyParser = require('body-parser')
 const IP2Region = require('ip2region').default;
 const mysql = require("../database/index")
 
+function isEmptyStr(s) {
+    return s === undefined || s == null || s === '';
+}
+
+module.exports.isEmptyStr = isEmptyStr;
+
 const Token = mysql.define('Token', {
     id: {
         type: DataTypes.INTEGER,
@@ -16,6 +22,11 @@ const Token = mysql.define('Token', {
         type: DataTypes.STRING,
         allowNull: false,
         comment: 'Token'
+    },
+    markcode: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: 'Markcode (设备ID)'
     },
     appid: {
         type: DataTypes.INTEGER,
@@ -183,7 +194,7 @@ const User = mysql.define('User', {
         comment: '用户注册IP'
     },
     register_time: {
-        type: DataTypes.DATE,
+        type: DataTypes.TIME,
         defaultValue: DataTypes.NOW,
         comment: '用户注册时间'
     },
@@ -200,7 +211,7 @@ const User = mysql.define('User', {
         comment: '用户注册运营商'
     },
     vip_time: {
-        type: DataTypes.DATE,
+        type: DataTypes.TIME,
         defaultValue: DataTypes.NOW,
         comment: '用户会员到期时间'
     },
@@ -215,7 +226,7 @@ const User = mysql.define('User', {
         comment: '用户账号状态'
     },
     disabledEndTime: {
-        type: DataTypes.DATE,
+        type: DataTypes.TIME,
         comment: '用户禁用到期时间'
     },
     reason: {
@@ -228,6 +239,16 @@ const User = mysql.define('User', {
         defaultValue: 'user',
         values: ['admin', 'user', 'tester'],
         comment: '用户权限组'
+    },
+    markcode: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: 'Markcode (设备ID)'
+    },
+    appid: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        comment: '隶属于应用 (id)'
     }
 }, {
     // 这是其他模型参数

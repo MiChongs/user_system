@@ -19,7 +19,6 @@
     "express": "^4.19.2",
     "express-jwt": "^8.4.1",
     "express-validator": "^7.1.0",
-    "geoip-lite": "^1.4.10",
     "iconv-lite": "^0.6.3",
     "ip2region": "^2.3.0",
     "jsonwebtoken": "^9.0.2",

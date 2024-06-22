@@ -47,3 +47,42 @@ exports.create = (req, res) => {
         })
     }
 }
+
+exports.deleteApp = (req, res) => {
+    const err = validationResult(req)
+    if (!err.isEmpty()) {
+        const [{msg}] = err.errors
+        res.status(400).json({
+            code: 400,
+            msg: msg,
+        })
+    } else {
+        global.App.findAll({
+            where: {
+                id: req.body.appid,
+            }
+        }).then(result => {
+            if (result[0] != null) {
+                result[0].destroy().then(r => res.status(200).json({
+                    code: 200,
+                    message: '应用删除成功'
+                })).catch(error => {
+                    res.status(201).json({
+                        code: 201,
+                        message: '应用删除失败'
+                    })
+                })
+            } else {
+                res.status(401).json({
+                    code: 401,
+                    message: '该应用不存在'
+                })
+            }
+        }).catch(error => {
+            res.status(500).json({
+                code: 500,
+                message: error
+            })
+        })
+    }
+}

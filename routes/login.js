@@ -10,7 +10,7 @@ router.post("/login", [
     body('password').notEmpty().withMessage("密码不得为空").isLength({
         min: 8,
         max: 24
-    }).withMessage("密码最少8位，最多24位")
+    }).withMessage("密码最少8位，最多24位"), body('markcode').notEmpty().withMessage("设备码不得为空"),
 ], loginController.login);
 
 module.exports = router;

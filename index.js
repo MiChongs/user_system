@@ -1,7 +1,6 @@
 const express = require("express");
 const routes = require("./routes/index"); //新增
 const app = express();
-require('dotenv').config() // 默认读取项目根目录下的.env文件
 const sequelize = require('sequelize')
 const {Sequelize, DataTypes} = require("sequelize");
 const globals = require('./global/index')
@@ -10,8 +9,8 @@ const {expressjwt} = require("express-jwt");
 const {body, validationResult} = require('express-validator');
 const boom = require('boom')
 const secretKey = "Voyage";
-app.use(expressjwt({algorithms: ['HS256'], secret: secretKey}).unless({
-    path: ['/api/register', '/api/login']
+app.use(expressjwt({algorithms: ['HS256'], secret: process.env.ADMIN_PASSWORD}).unless({
+    path: ['/api/user/register', '/api/user/login', '/api/admin/login']
 }));
 app.use(function (err, req, res, next) {
     if (err.name === 'UnauthorizedError') {
@@ -22,7 +21,7 @@ app.use(function (err, req, res, next) {
         return
     }
     if (err) {
-        res.status(500).send({status: 'fail'});
+        res.status(500).json({status: 'fail'});
     }
 })
 app.use(cors());
@@ -37,36 +36,35 @@ app.all('*', function (req, res, next) {
     res.header('Content-Type', 'application/json;charset=utf-8');
     next();
 });
-const {join, resolve} = require("node:path");
+const {resolve} = require("node:path");
 const {jwt} = require("./global");
 
-// 生成token
-let generateToken;
-generateToken = function (payload) {
+exports.generateToken = function (payload) {
     return "Bearer " +
         jwt.sign(payload, secretKey, {
             expiresIn: '7d',
         });
 };
 
-// 验证token
-let verifyToken;
-verifyToken = function (req, res, next) {
-    const token = req.headers.authorization.split(" ")[1];
-    jwt.verify(token, secretKey, function (err, decoded) {
+let verifyToken = async function (token) {
+    let newToken = token
+    if (newToken.indexOf('Bearer') >= 0) {
+        newToken = newToken.replace('Bearer ', '')
+    }
+    await jwt.verify(newToken, process.env.APP_TOKEN_KEY, function (err, decoded) {
         if (err) {
             console.log("verify error", err);
-            return res.json({code: 404, msg: "token无效"});
+            return false;
         }
         console.log("verify decoded", decoded);
-        next();
+        return true
     });
 };
+
 app.use((req, res, next) => {
 //获取header中的token，并验证
     if (req.headers.authorization) {
         const flag = verifyToken(req.headers.authorization)
-//验证失败
         if (!flag) {
             res.send({status: 'fail'})
         }
