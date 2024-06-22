@@ -1,13 +1,157 @@
 const {Sequelize, DataTypes} = require("sequelize");
 const crypto = require("crypto");
-const mysql = new Sequelize("testdatabase", "test", "123456", {
-    host: "localhost",
-    dialect: "mysql",
-    timezone: '+08:00',
-})
 const jwt = require("jsonwebtoken");
 const bodyParser = require('body-parser')
 const IP2Region = require('ip2region').default;
+const mysql = require("../database/index")
+
+const Token = mysql.define('Token', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+        comment: 'Token ID'
+    },
+    token: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: 'Token'
+    },
+    appid: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        comment: 'App ID'
+    }, account: {
+        type: DataTypes.STRING,
+        comment: '用户账号',
+        allowNull: false
+    },
+})
+
+const App = mysql.define('App', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: false,
+        comment: '应用ID'
+    },
+    name: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '应用名称'
+    },
+    key: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '应用密钥'
+    },
+    status: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        comment: '应用状态'
+    },
+    disabledReason: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: '',
+        comment: '应用禁用原因'
+    },
+    registerStatus: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        comment: '注册启用状态'
+    },
+    disabledRegisterReason: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: true,
+        comment: '注册禁用原因'
+    },
+    loginStatus: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        comment: '登录启用状态'
+    },
+    disableLoginReason: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: '',
+        comment: '登录禁用原因'
+    },
+    loginCheckDevice: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+        defaultValue: true,
+        comment: '登录校验设备信息'
+    },
+    loginCheckUser: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: '登录校验用户属地与上次是否相符'
+    },
+    loginCheckDeviceTimeOut: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        comment: '登录换绑机器码间隔'
+    },
+    multiDeviceLogin: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: '多设备登录启用状态'
+    },
+    multiDeviceLoginNum: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 1,
+        comment: '多设备数量'
+    },
+    register_award: {
+        type: DataTypes.ENUM,
+        allowNull: false,
+        values: ['vip', 'integral'],
+        defaultValue: 'integral',
+        comment: '注册奖励'
+    },
+    register_award_num: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        comment: "注册奖励数"
+    },
+    invite_award: {
+        type: DataTypes.ENUM,
+        allowNull: false,
+        values: ['vip', 'integral'],
+        defaultValue: 'integral',
+        comment: '邀请奖励'
+    },
+    invite_award_num: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        comment: '邀请奖励数'
+    },
+    daily_award: {
+        type: DataTypes.ENUM,
+        allowNull: false,
+        values: ['vip', 'integral'],
+        defaultValue: 'integral',
+        comment: '签到奖励'
+    },
+    daily_award_num: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        comment: '签到奖励数'
+    }
+})
+
 const User = mysql.define('User', {
     // 定义模型属性
     id: {
@@ -51,6 +195,10 @@ const User = mysql.define('User', {
         type: DataTypes.STRING,
         comment: '用户注册城市'
     },
+    register_isp: {
+        type: DataTypes.STRING,
+        comment: '用户注册运营商'
+    },
     vip_time: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
@@ -84,7 +232,7 @@ const User = mysql.define('User', {
 }, {
     // 这是其他模型参数
     freezeTableName: true,
-    timestamps: false,
+    timestamps: true,
 });
 
 function getClientIp(req) {
@@ -106,6 +254,8 @@ function ipv6ToV4(ip) {
 }
 
 module.exports.User = User;
+module.exports.App = App;
+module.exports.Token = Token;
 module.exports.mysql = mysql;
 module.exports.sequelize = Sequelize;
 module.exports.crypto = crypto;

@@ -1,109 +1,87 @@
 const express = require("express");
 const routes = require("./routes/index"); //新增
 const app = express();
-
+require('dotenv').config() // 默认读取项目根目录下的.env文件
 const sequelize = require('sequelize')
 const {Sequelize, DataTypes} = require("sequelize");
 const globals = require('./global/index')
 const cors = require('cors');
 const {expressjwt} = require("express-jwt");
-const secretKey = "Voyage";
 const {body, validationResult} = require('express-validator');
 const boom = require('boom')
+const secretKey = "Voyage";
+app.use(expressjwt({algorithms: ['HS256'], secret: secretKey}).unless({
+    path: ['/api/register', '/api/login']
+}));
+app.use(function (err, req, res, next) {
+    if (err.name === 'UnauthorizedError') {
+        res.status(401).json({
+            code: 401,
+            message: '无效 token'
+        })
+        return
+    }
+    if (err) {
+        res.status(500).send({status: 'fail'});
+    }
+})
 app.use(cors());
+app.set('trust proxy', 'loopback');
 app.use(globals.bodyParser.json());
 app.use(globals.bodyParser.urlencoded({extended: false}));
+app.all('*', function (req, res, next) {
+    res.header('Access-Control-Allow-Origin', '*');
+    //Access-Control-Allow-Headers ,可根据浏览器的F12查看,把对应的粘贴在这里就行
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    res.header('Access-Control-Allow-Methods', '*');
+    res.header('Content-Type', 'application/json;charset=utf-8');
+    next();
+});
 const {join, resolve} = require("node:path");
 const {jwt} = require("./global");
 
 // 生成token
+let generateToken;
 generateToken = function (payload) {
     return "Bearer " +
         jwt.sign(payload, secretKey, {
-            expiresIn: 60 * 60,
+            expiresIn: '7d',
         });
 };
 
 // 验证token
+let verifyToken;
 verifyToken = function (req, res, next) {
     const token = req.headers.authorization.split(" ")[1];
     jwt.verify(token, secretKey, function (err, decoded) {
         if (err) {
             console.log("verify error", err);
-            return res.json({code: "404", msg: "token无效"});
+            return res.json({code: 404, msg: "token无效"});
         }
         console.log("verify decoded", decoded);
         next();
     });
 };
-
-app.post("/api/register",
-    [
-        body('account').notEmpty().withMessage("账号不得为空").isAscii().withMessage("账号不符合要求"),
-        body('username').notEmpty().withMessage("用户名不得为空"),
-        body('password').notEmpty().withMessage("密码不得为空")
-    ], (req, res, next) => {
-        const err = validationResult(req)
-        if (!err.isEmpty()) {
-            const [{msg}] = err.errors
-            res.status(400).json({
-                code: "400",
-                msg: msg,
-            })
-        } else {
-            globals.User.count({
-                where: {
-                    account: req.body.account,
-                }
-            }).then(count => {
-                if (count >= 1) {
-                    res.json({code: "401", msg: "user already exists"});
-                } else {
-                    globals.User.create({
-                        username: req.body.username,
-                        account: req.body.account,
-                        password: req.body.password,
-                        register_ip: globals.getClientIp(req),
-                    }).then((result) => {
-                        res.json({
-                            code: 200,
-                            message: '用户插入成功',
-                            result: [{
-                                username: result.username,
-                                account: result.account,
-                                password: result.password,
-                                avatar: result.avatar,
-                                name: result.name,
-                                register_ip: result.register_ip,
-                                register_time: result.register_time,
-                                vip_time: result.vip_time,
-                                token: generateToken({
-                                    username: result.account,
-                                    password: result.password,
-                                    avatar: result.avatar
-                                }),
-                            }]
-                        });
-                    })
-                }
-            }).catch(error => {
-                res.json({code: "401", msg: "查询数据库出现错误" + error.message});
-                globals.User.sync().then(r => {
-                    console.debug(r)
-                }).catch(
-                    error => {
-                        console.error(err)
-                    }
-                )
-            });
+app.use((req, res, next) => {
+//获取header中的token，并验证
+    if (req.headers.authorization) {
+        const flag = verifyToken(req.headers.authorization)
+//验证失败
+        if (!flag) {
+            res.send({status: 'fail'})
         }
-    });
-
+    }
+//验证成功继续
+    next()
+})
 app.get("/admin", (req, res) => {
     res.sendFile(resolve(__dirname, 'client/dist/admin', 'index.html'));
 })
 
 app.use("/", routes); //新增
+globals.User.sync().then(r => console.debug("User synced successfully.")).catch(e => console.error(e));
+globals.App.sync().then(r => console.debug("App synced successfully.")).catch(e => console.error(e));
+globals.Token.sync().then(r => console.debug("Token synced successfully.")).catch(e => console.error(e));
 app.listen(3000, () => {
     console.log("server is running");
 });
