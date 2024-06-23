@@ -21,7 +21,7 @@
 
 ### 微信
 
-![微信](https://p.ananas.chaoxing.com/star3/origin/c597ad9a85489bb5c0ee48a056553e66)
+![微信](http://p.ananas.chaoxing.com/star3/origin/c597ad9a85489bb5c0ee48a056553e66)
 
 ### 支付宝
 
