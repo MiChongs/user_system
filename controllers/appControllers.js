@@ -231,7 +231,8 @@ exports.updateAppConfig = function (req, res) {
                     }).then(result => {
                         res.status(200).json({
                             code: 200,
-                            message: result
+                            message: '更新配置成功',
+                            data: result
                         })
                     }).catch(error => {
                         res.status(500).json({

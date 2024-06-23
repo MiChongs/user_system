@@ -34,6 +34,7 @@
     "passport": "^0.7.0",
     "public-ip": "^6.0.2",
     "request-ip": "^3.3.0",
-    "sequelize": "^6.37.3"
+    "sequelize": "^6.37.3",
+    "string-random": "^0.1.3"
   }
 }

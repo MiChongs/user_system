@@ -133,7 +133,7 @@ exports.register = async function (req, res, next) {
                                     register_ip: req.clientIp
                                 }
                             }).then(count => {
-                                if (count >= 1) {
+                                if (count >= 6) {
                                     // 如果IP已注册过账号，返回401错误并提示IP已注册过账号
                                     res.status(401).json({
                                         code: 401,
@@ -146,8 +146,8 @@ exports.register = async function (req, res, next) {
                                     const options = {
                                         watchForUpdates: true
                                     }; // 假设options已定义
-                                    global.lookupAllGeoInfo('8.8.8.8', options).then(info => {
-                                        let userConfig;
+                                    let userConfig;
+                                    global.lookupAllGeoInfo('8.8.8.8', options).then(async info => {
                                         if (app.register_award === 'integral') {
                                             userConfig = {
                                                 name: req.body.username,
@@ -159,6 +159,7 @@ exports.register = async function (req, res, next) {
                                                 register_isp: info.asn.autonomousSystemOrganization,
                                                 appid: req.body.appid,
                                                 integral: app.register_award_num,
+                                                invite_code: bcrypt.hashSync(global.stringRandom(16), 10),
                                                 markcode: req.body.markcode
                                             }
                                         } else {
@@ -172,8 +173,39 @@ exports.register = async function (req, res, next) {
                                                 register_isp: info.asn.autonomousSystemOrganization,
                                                 appid: req.body.appid,
                                                 markcode: req.body.markcode,
+                                                invite_code: bcrypt.hashSync(global.stringRandom(16), 10),
                                                 vip_time: global.moment().add(app.register_award_num, 'm'),
                                             }
+                                        }
+                                        if (req.body.invite_code) {
+                                            await global.User.findOne({
+                                                where: {
+                                                    invite_code: req.body.invite_code,
+                                                    appid: req.body.appid,
+                                                }
+                                            }).then(user => {
+                                                if (user) {
+                                                    userConfig.parent_invite_account = user.account
+                                                    if (app.invite_award === 'integral') {
+                                                        if (userConfig.integral == null) {
+                                                            userConfig.integral = 0;
+                                                        }
+                                                        userConfig.integral += app.invite_award_num
+                                                    } else {
+                                                        if (userConfig.vip_time == null) {
+                                                            userConfig.vip_time = Date().now()
+                                                        }
+                                                        userConfig.vip_time += global.moment().add(app.invite_award_num, 'm')
+                                                    }
+                                                    return
+                                                } else {
+                                                    res.status(400).json({
+                                                        code: 400,
+                                                        message: '邀请码无效'
+                                                    })
+                                                    return
+                                                }
+                                            })
                                         }
                                         global.User.create(userConfig).then((result) => {
                                             // 用户创建成功，返回200成功码和用户信息

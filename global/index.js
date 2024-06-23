@@ -7,7 +7,9 @@ const mysql = require("../database/index")
 const multer = require('multer')
 const mkdirp = require('mkdirp')
 const moment = require('moment')
-const fs = require("fs")
+const fs = require("fs");
+const bcrypt = require("bcrypt");
+const stringRandom = require('string-random');
 // 获取当前的日期
 const nowDate = moment().format('YYYY-MM-DD')
 // 封装保存上传文件功能
@@ -349,6 +351,14 @@ const User = mysql.define('User', {
         allowNull: false,
         comment: 'Markcode (设备ID)'
     },
+    parent_invite_account: {
+        type: DataTypes.STRING,
+        comment: '邀请人'
+    },
+    invite_code: {
+        type: DataTypes.STRING,
+        comment: '邀请码',
+    },
     appid: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -448,3 +458,4 @@ module.exports.lookupAllGeoInfo = lookupAllGeoInfo;
 module.exports.upload = upload;
 module.exports.fs = fs;
 module.exports.moment = moment;
+module.exports.stringRandom = stringRandom;
