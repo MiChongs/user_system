@@ -1,7 +1,7 @@
 const express = require("express");
 const appController = require('../controllers/appControllers');
-const {body} = require("express-validator");
-const {jwt} = require("../global");
+const { body } = require("express-validator");
+const { jwt } = require("../global");
 
 const router = express.Router(); //模块化路由
 
@@ -14,13 +14,22 @@ router.delete("/delete", [
     body("appid").not().isEmpty().withMessage("应用ID是必须的"),
 ], appController.deleteApp);
 
-router.post("/list",  appController.apps);
+router.post("/config", [
+    body('appid').not().isEmpty().withMessage("应用ID是必须的"),
+], appController.appConfig)
+
+
+router.post("/updateConfig", [
+    body('appid').not().isEmpty().withMessage("应用ID是必须的"),
+], appController.updateAppConfig)
+
+router.post("/list", appController.apps);
 
 router.post('/notification/create', [
     body("appid").not().isEmpty().withMessage("应用ID是必须的"),
     body("title").not().isEmpty().withMessage("通知标题是必须的"),
     body("content").not().isEmpty().withMessage("通知内容是必须的"),
-],  appController.createNotification)
+], appController.createNotification)
 
 let verifyToken = async function (token) {
     let newToken = token
@@ -38,14 +47,14 @@ let verifyToken = async function (token) {
 };
 
 router.use((req, res, next) => {
-//获取header中的token，并验证
+    //获取header中的token，并验证
     if (req.headers.authorization) {
         const flag = verifyToken(req.headers.authorization)
         if (!flag) {
-            res.send({status: 'fail'})
+            res.send({ status: 'fail' })
         }
     }
-//验证成功继续
+    //验证成功继续
     next()
 })
 

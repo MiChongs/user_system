@@ -97,107 +97,133 @@ exports.register = async function (req, res, next) {
             }
             if (app instanceof global.App) {
                 // 检查应用是否允许注册
-                if (!app.registerStatus) {
-                    let reason;
-                    // 如果有禁用注册的原因，则显示原因，否则显示无原因
-                    if (isEmptyStr(app.disabledRegisterReason)) {
-                        reason = '无原因'
-                    } else {
-                        reason = app.disabledRegisterReason
-                    }
-                    res.status(400).json({
-                        code: 400,
-                        message: '应用已暂停注册',
-                        data: {
-                            reason: reason
+                if (app.status) {
+                    if (!app.registerStatus) {
+                        let reason;
+                        // 如果有禁用注册的原因，则显示原因，否则显示无原因
+                        if (isEmptyStr(app.disabledRegisterReason)) {
+                            reason = '无原因'
+                        } else {
+                            reason = app.disabledRegisterReason
                         }
-                    })
-                    return
-                }
-                // 检查用户账号是否已存在
-                global.User.count({
-                    where: {
-                        account: req.body.account,
-                    }
-                }).then(async count => {
-                    if (count >= 1) {
-                        // 如果账号已存在，返回401错误并提示用户已存在
-                        res.status(401).json({ code: "401", msg: "用户已存在" });
-                    } else {
-                        // 查询用户注册IP所在地区
-                        // 检查是否已存在相同IP注册的用户
-                        global.User.count({
-                            where: {
-                                register_ip: req.clientIp
+                        res.status(400).json({
+                            code: 400,
+                            message: '应用已暂停注册',
+                            data: {
+                                reason: reason
                             }
-                        }).then(count => {
-                            if (count >= 1) {
-                                // 如果IP已注册过账号，返回401错误并提示IP已注册过账号
-                                res.status(401).json({
-                                    code: 401,
-                                    message: "IP已注册过账号"
-                                })
-                            } else {
-                                // 创建新用户
-
-                                // 使用示例
-                                const options = {
-                                    watchForUpdates: true
-                                }; // 假设options已定义
-                                global.lookupAllGeoInfo(req.clientIp, options).then(info => {
-                                    global.User.create({
-                                        name: req.body.username,
-                                        account: req.body.account,
-                                        password: bcrypt.hashSync(req.body.password, 10),
-                                        register_ip: req.clientIp,
-                                        register_province: info.city.provinceName,
-                                        register_city: info.city.cityNameZh,
-                                        register_isp: info.asn.autonomousSystemOrganization,
-                                        appid: req.body.appid,
-                                        markcode: req.body.markcode
-                                    }).then((result) => {
-                                        // 用户创建成功，返回200成功码和用户信息
-                                        res.json({
-                                            code: 200,
-                                            message: '用户注册成功',
-                                            result: [{
-                                                account: result.account,
-                                                password: result.password,
-                                                avatar: result.avatar,
-                                                name: result.username,
-                                                register_ip: result.register_ip,
-                                                register_time: result.register_time,
-                                                vip_time: result.vip_time,
-                                            }]
-                                        });
-                                    })
-                                }).catch(err => {
-                                    res.status(500).json({
-                                        code: 500,
-                                        message: '查询IP所在地区失败',
-                                        error: err.message
-                                    })
-                                })
-                            }
-                        }).catch(error => {
-                            // 处理数据库查询错误
-                            res.status(500).json({
-                                code: 500,
-                                message: error
-                            })
                         })
+                        return
                     }
-                }).catch(error => {
-                    // 处理数据库查询错误
-                    res.json({ code: "403", msg: "查询数据库出现错误" + error.message });
-                    globals.User.sync().then(r => {
-                        console.debug(r)
-                    }).catch(
-                        error => {
-                            console.error(err)
+
+                    // 检查用户账号是否已存在
+                    global.User.count({
+                        where: {
+                            account: req.body.account,
                         }
-                    )
-                });
+                    }).then(async count => {
+                        if (count >= 1) {
+                            // 如果账号已存在，返回401错误并提示用户已存在
+                            res.status(401).json({ code: "401", msg: "用户已存在" });
+                        } else {
+                            // 查询用户注册IP所在地区
+                            // 检查是否已存在相同IP注册的用户
+                            global.User.count({
+                                where: {
+                                    register_ip: req.clientIp
+                                }
+                            }).then(count => {
+                                if (count >= 1) {
+                                    // 如果IP已注册过账号，返回401错误并提示IP已注册过账号
+                                    res.status(401).json({
+                                        code: 401,
+                                        message: "IP已注册过账号"
+                                    })
+                                } else {
+                                    // 创建新用户
+
+                                    // 使用示例
+                                    const options = {
+                                        watchForUpdates: true
+                                    }; // 假设options已定义
+                                    global.lookupAllGeoInfo('8.8.8.8', options).then(info => {
+                                        let userConfig;
+                                        if (app.register_award === 'integral') {
+                                            userConfig = {
+                                                name: req.body.username,
+                                                account: req.body.account,
+                                                password: bcrypt.hashSync(req.body.password, 10),
+                                                register_ip: req.clientIp,
+                                                register_province: info.city.provinceName,
+                                                register_city: info.city.cityNameZh,
+                                                register_isp: info.asn.autonomousSystemOrganization,
+                                                appid: req.body.appid,
+                                                integral: app.register_award_num,
+                                                markcode: req.body.markcode
+                                            }
+                                        } else {
+                                            userConfig = {
+                                                name: req.body.username,
+                                                account: req.body.account,
+                                                password: bcrypt.hashSync(req.body.password, 10),
+                                                register_ip: req.clientIp,
+                                                register_province: info.city.provinceName,
+                                                register_city: info.city.cityNameZh,
+                                                register_isp: info.asn.autonomousSystemOrganization,
+                                                appid: req.body.appid,
+                                                markcode: req.body.markcode,
+                                                vip_time: global.moment().add(app.register_award_num, 'm'),
+                                            }
+                                        }
+                                        global.User.create(userConfig).then((result) => {
+                                            // 用户创建成功，返回200成功码和用户信息
+                                            res.json({
+                                                code: 200,
+                                                message: '用户注册成功',
+                                                result: [{
+                                                    account: result.account,
+                                                    password: result.password,
+                                                    avatar: result.avatar,
+                                                    name: result.username,
+                                                    register_ip: result.register_ip,
+                                                    register_time: result.register_time,
+                                                    vip_time: result.vip_time,
+                                                }]
+                                            });
+                                        })
+                                    }).catch(err => {
+                                        res.status(500).json({
+                                            code: 500,
+                                            message: '查询IP所在地区失败',
+                                            error: err.message
+                                        })
+                                    })
+                                }
+                            }).catch(error => {
+                                // 处理数据库查询错误
+                                res.status(500).json({
+                                    code: 500,
+                                    message: error
+                                })
+                            })
+                        }
+                    }).catch(error => {
+                        // 处理数据库查询错误
+                        res.json({ code: "403", msg: "查询数据库出现错误" + error.message });
+                        globals.User.sync().then(r => {
+                            console.debug(r)
+                        }).catch(
+                            error => {
+                                console.error(err)
+                            }
+                        )
+                    });
+                } else {
+                    res.status(201).json({
+                        code: 201,
+                        message: '应用已停止'
+                    })
+                }
             }
 
         }).catch(error => {

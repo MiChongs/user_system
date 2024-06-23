@@ -1,4 +1,4 @@
-const {Sequelize, DataTypes} = require("sequelize");
+const { Sequelize, DataTypes } = require("sequelize");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const bodyParser = require('body-parser')
@@ -11,21 +11,21 @@ const fs = require("fs")
 // 获取当前的日期
 const nowDate = moment().format('YYYY-MM-DD')
 // 封装保存上传文件功能
-const upload = ()=>{
-    const storage  = multer.diskStorage({
-        destination:async (req,file,cb)=>{ // 指定上传后保存到哪一个文件夹中
+const upload = () => {
+    const storage = multer.diskStorage({
+        destination: async (req, file, cb) => { // 指定上传后保存到哪一个文件夹中
             await mkdirp(`./public/avatars/`)  // 创建目录
-            cb(null,`public/avatars`) //
+            cb(null, `public/avatars`) //
         },
-        filename:(req,file,cb)=>{ // 给保存的文件命名
+        filename: (req, file, cb) => { // 给保存的文件命名
             let extname = path.extname(file.originalname); // 获取后缀名
-    
+
             let fileName = path.parse(file.originalname).name // 获取上传的文件名
-            cb(null,`${fileName}-${Date.now()}${extname}`)
+            cb(null, `${fileName}-${Date.now()}${extname}`)
         }
     })
 
-    return multer( {storage})
+    return multer({ storage })
 }
 function isEmptyStr(s) {
     return s === undefined || s == null || s === '';
@@ -57,7 +57,7 @@ const Card = mysql.define('Card', {
         comment: '卡密状态',
         values: ['normal', 'used', 'expired']
     },
-    card_award_num:{
+    card_award_num: {
         type: DataTypes.INTEGER,
         allowNull: false,
         comment: '卡密奖励数量'
@@ -372,44 +372,66 @@ function ipv6ToV4(ip) {
 async function lookupAllGeoInfo(ip, options) {
     const Reader = require('@maxmind/geoip2-node').Reader;
     try {
-      const [countryReader, cityReader, asnReader] = await Promise.all([
-        Reader.open('./geo2mmdb/country.mmdb', options),
-        Reader.open('./geo2mmdb/city.mmdb', options),
-        Reader.open('./geo2mmdb/asn.mmdb', options)
-      ]);
-  
-      const allInfo = {};
-  
-      if (countryReader) {
-        const countryResponse = countryReader.country(ip);
-        allInfo.country = {
-          registeredCountryNameZh: countryResponse.registeredCountry.names['zh-CN']
-        };
-      }
-  
-      if (cityReader) {
-        const cityResponse = cityReader.city(ip);
-        allInfo.city = {
-          countryIsoCode: cityResponse.country.isoCode,
-          provinceName: cityResponse.subdivisions[0].names['zh-CN'] || '未知',
-          cityNameZh: cityResponse.city.names['zh-CN'] || '未知'
-        };
-      }
-  
-      if (asnReader) {
-        const asnResponse = asnReader.asn(ip);
-        allInfo.asn = {
-          autonomousSystemNumber: asnResponse.autonomousSystemNumber,
-          autonomousSystemOrganization: asnResponse.autonomousSystemOrganization
-        };
-      }
+        const [countryReader, cityReader, asnReader] = await Promise.all([
+            Reader.open('./geo2mmdb/country.mmdb', options),
+            Reader.open('./geo2mmdb/city.mmdb', options),
+            Reader.open('./geo2mmdb/asn.mmdb', options)
+        ]);
 
-      return allInfo;
+        const allInfo = {};
+
+        if (countryReader) {
+            const countryResponse = countryReader.country(ip);
+            try {
+                allInfo.country = {
+                    registeredCountryNameZh: countryResponse.registeredCountry.names['zh-CN']
+                };
+            } catch (error) {
+
+                allInfo.country = {
+                    registeredCountryNameZh: '未知'
+                };
+            }
+        }
+
+        if (cityReader) {
+            const cityResponse = cityReader.city(ip);
+            try {
+                allInfo.city = {
+                    countryIsoCode: cityResponse.country.isoCode,
+                    provinceName: cityResponse.subdivisions[0].names['zh-CN'],
+                    cityNameZh: cityResponse.city.names['zh-CN']
+                };
+            } catch (error) {
+                allInfo.city = {
+                    countryIsoCode: cityResponse.country.isoCode,
+                    provinceName: '未知',
+                    cityNameZh: '未知'
+                };
+            }
+        }
+
+        if (asnReader) {
+            const asnResponse = asnReader.asn(ip);
+            try {
+                allInfo.asn = {
+                    autonomousSystemNumber: asnResponse.autonomousSystemNumber,
+                    autonomousSystemOrganization: asnResponse.autonomousSystemOrganization
+                };
+            } catch (error) {
+                allInfo.asn = {
+                    autonomousSystemNumber: 0,
+                    autonomousSystemOrganization: 'LOCAL ASN'
+                };
+            }
+        }
+
+        return allInfo;
     } catch (error) {
-      console.error('Error looking up all geo information:', error);
-      throw error; // 重新抛出错误，以便调用者可以处理
+        console.error('Error looking up all geo information:', error);
+        throw error; // 重新抛出错误，以便调用者可以处理
     }
-  }
+}
 
 module.exports.User = User;
 module.exports.App = App;

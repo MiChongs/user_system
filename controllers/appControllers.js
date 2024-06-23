@@ -171,3 +171,81 @@ exports.apps = function (req, res) {
         })
     })
 }
+
+exports.appConfig = function (req, res) {
+    global.App.findByPk(req.params.appid || req.body.appid).then(app => {
+        if (app == null) {
+            // 如果应用不存在，返回400错误并提示应用无法找到
+            return res.status(400).json({
+                code: 400,
+                message: '无法找到该应用'
+            })
+        }
+        if (app instanceof global.App) {
+            res.status(200).json({
+                code: 200,
+                message: app
+            })
+        }
+    })
+}
+
+
+exports.updateAppConfig = function (req, res) {
+    const err = validationResult(req)
+    if (!err.isEmpty()) {
+        const [{ msg }] = err.errors
+        res.status(400).json({
+            code: 400,
+            msg: msg,
+        })
+    } else {
+        global.App.findByPk(req.params.appid || req.body.appid).then(app => {
+            if (app == null) {
+                // 如果应用不存在，返回400错误并提示应用无法找到
+                return res.status(400).json({
+                    code: 400,
+                    message: '无法找到该应用'
+                })
+            } else {
+                if (app instanceof global.App) {
+                    app.update({
+                        name: req.body.name,
+                        status: req.body.status || app.status,
+                        disabledReason: req.body.disabledReason || app.disabledReason,
+                        registerStatus: req.body.registerStatus || app.registerStatus,
+                        disabledRegisterStatus: req.body.disabledRegisterStatus || app.disabledRegisterStatus,
+                        loginStatus: req.body.loginStatus || app.loginStatus,
+                        disabledLoginReason: req.body.disabledLoginReason || app.disabledLoginReason,
+                        loginCheckDevice: req.body.loginCheckDevice || app.loginCheckDevice,
+                        loginCheckUser: req.body.loginCheckUser || app.loginCheckUser,
+                        loginCheckDeviceTimeOut: req.body.loginCheckDeviceTimeOut || app.loginCheckDeviceTimeOut,
+                        multiDeviceLogin: req.body.multiDeviceLogin || app.multiDeviceLogin,
+                        multiDeviceLoginNum: req.body.multiDeviceLoginNum || app.multiDeviceLoginNum,
+                        register_award: req.body.register_award || app.register_award,
+                        register_award_num: req.body.register_award_num || app.register_award_num,
+                        invite_award: req.body.invite_award || app.invite_award,
+                        invite_award_num: req.body.invite_award_num || app.invite_award_num,
+                        daily_award: req.body.daily_award || app.daily_award,
+                        daily_award_num: req.body.daily_award_num || app.daily_award_num,
+                    }).then(result => {
+                        res.status(200).json({
+                            code: 200,
+                            message: result
+                        })
+                    }).catch(error => {
+                        res.status(500).json({
+                            code: 500,
+                            message: error
+                        })
+                    })
+                }
+            }
+        }).catch(error => {
+            res.status(500).json({
+                code: 500,
+                message: error
+            })
+        })
+    }
+}
