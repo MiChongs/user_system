@@ -4,12 +4,93 @@ const jwt = require("jsonwebtoken");
 const bodyParser = require('body-parser')
 const IP2Region = require('ip2region').default;
 const mysql = require("../database/index")
-
 function isEmptyStr(s) {
     return s === undefined || s == null || s === '';
 }
 
 module.exports.isEmptyStr = isEmptyStr;
+
+const Card = mysql.define('Card', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+        comment: '卡密ID'
+    },
+    card_code: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '卡密内容'
+    },
+    card_type: {
+        type: DataTypes.ENUM,
+        allowNull: false,
+        comment: '卡密类型',
+        values: ['integral', 'vip']
+    },
+    card_status: {
+        type: DataTypes.ENUM,
+        allowNull: false,
+        comment: '卡密状态',
+        values: ['normal', 'used', 'expired']
+    },
+    card_award_num:{
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        comment: '卡密奖励数量'
+    },
+    card_code_expire: {
+        type: DataTypes.DATE,
+        comment: '卡密过期时间',
+        allowNull: false,
+    },
+    card_time: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
+        comment: '创建时间'
+    },
+    used_time: {
+        type: DataTypes.DATE,
+        comment: '使用时间'
+    },
+    appid: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        comment: 'App ID'
+    },
+    account: {
+        type: DataTypes.STRING,
+        comment: '用户账号 (使用者账号)'
+    }
+})
+
+const Notification = mysql.define('Notification', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+        comment: '通知ID'
+    },
+    title: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '通知标题',
+    },
+    summary: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '通知内容'
+    },
+    appid: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        comment: 'App ID'
+    },
+    time: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
+    }
+})
 
 const Token = mysql.define('Token', {
     id: {
@@ -194,7 +275,7 @@ const User = mysql.define('User', {
         comment: '用户注册IP'
     },
     register_time: {
-        type: DataTypes.TIME,
+        type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
         comment: '用户注册时间'
     },
@@ -211,7 +292,7 @@ const User = mysql.define('User', {
         comment: '用户注册运营商'
     },
     vip_time: {
-        type: DataTypes.TIME,
+        type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
         comment: '用户会员到期时间'
     },
@@ -226,7 +307,7 @@ const User = mysql.define('User', {
         comment: '用户账号状态'
     },
     disabledEndTime: {
-        type: DataTypes.TIME,
+        type: DataTypes.DATE,
         comment: '用户禁用到期时间'
     },
     reason: {
@@ -274,8 +355,52 @@ function ipv6ToV4(ip) {
     return ip
 }
 
+async function lookupAllGeoInfo(ip, options) {
+    const Reader = require('@maxmind/geoip2-node').Reader;
+    try {
+      const [countryReader, cityReader, asnReader] = await Promise.all([
+        Reader.open('./geo2mmdb/country.mmdb', options),
+        Reader.open('./geo2mmdb/city.mmdb', options),
+        Reader.open('./geo2mmdb/asn.mmdb', options)
+      ]);
+  
+      const allInfo = {};
+  
+      if (countryReader) {
+        const countryResponse = countryReader.country(ip);
+        allInfo.country = {
+          registeredCountryNameZh: countryResponse.registeredCountry.names['zh-CN']
+        };
+      }
+  
+      if (cityReader) {
+        const cityResponse = cityReader.city(ip);
+        allInfo.city = {
+          countryIsoCode: cityResponse.country.isoCode,
+          provinceName: cityResponse.subdivisions[0].names['zh-CN'] || '未知',
+          cityNameZh: cityResponse.city.names['zh-CN'] || '未知'
+        };
+      }
+  
+      if (asnReader) {
+        const asnResponse = asnReader.asn(ip);
+        allInfo.asn = {
+          autonomousSystemNumber: asnResponse.autonomousSystemNumber,
+          autonomousSystemOrganization: asnResponse.autonomousSystemOrganization
+        };
+      }
+
+      return allInfo;
+    } catch (error) {
+      console.error('Error looking up all geo information:', error);
+      throw error; // 重新抛出错误，以便调用者可以处理
+    }
+  }
+
 module.exports.User = User;
 module.exports.App = App;
+module.exports.Card = Card;
+module.exports.Notification = Notification;
 module.exports.Token = Token;
 module.exports.mysql = mysql;
 module.exports.sequelize = Sequelize;
@@ -284,3 +409,4 @@ module.exports.bodyParser = bodyParser;
 module.exports.jwt = jwt;
 module.exports.ipRegion = IP2Region;
 module.exports.getClientIp = getClientIp;
+module.exports.lookupAllGeoInfo = lookupAllGeoInfo;

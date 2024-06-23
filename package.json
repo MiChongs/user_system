@@ -29,6 +29,7 @@
     "mysql2": "^3.9.7",
     "passport": "^0.7.0",
     "public-ip": "^6.0.2",
+    "request-ip": "^3.3.0",
     "sequelize": "^6.37.3"
   }
 }

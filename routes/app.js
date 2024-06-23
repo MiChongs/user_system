@@ -14,6 +14,12 @@ router.delete("/delete", [
     body("appid").not().isEmpty().withMessage("应用ID是必须的"),
 ], appController.deleteApp);
 
+router.post('/notification/create', [
+    body("appid").not().isEmpty().withMessage("应用ID是必须的"),
+    body("title").not().isEmpty().withMessage("通知标题是必须的"),
+    body("content").not().isEmpty().withMessage("通知内容是必须的"),
+],  appController.createNotification)
+
 let verifyToken = async function (token) {
     let newToken = token
     if (newToken.indexOf('Bearer') >= 0) {

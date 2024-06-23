@@ -1,12 +1,20 @@
 const crypto = require("crypto");
 const global = require("../global");
 const bcrypt = require("bcrypt");
-const {validationResult} = require("express-validator");
+const { validationResult } = require("express-validator");
 
+/**
+ * # 创建应用
+ * ## 参数
+ * 1. appid
+ * 1. name
+ *
+ * 请求该接口需要管理员Token，在请求头设置即可
+ */
 exports.create = (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{msg}] = err.errors
+        const [{ msg }] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -48,10 +56,73 @@ exports.create = (req, res) => {
     }
 }
 
+
+exports.createNotification = async function (req, res) {
+    const err = validationResult(req)
+    if (!err.isEmpty()) {
+        const [{ msg }] = err.errors
+        res.status(400).json({
+            code: 400,
+            msg: msg,
+        })
+    } else {
+        await global.App.findByPk(req.params.appid || req.body.appid).then(app => {
+            if (app == null) {
+                // 如果应用不存在，返回400错误并提示应用无法找到
+                return res.status(400).json({
+                    code: 400,
+                    message: '无法找到该应用'
+                })
+            }
+            if (app instanceof global.App) {
+                if (app.status) {
+                    global.Notification.create({
+                        appid: app.id,
+                        title: req.body.title,
+                        summary: req.body.content,
+                    }).then(result => {
+                        res.status(200).json({
+                            code: 200,
+                            message: '成功创建通知',
+                        })
+                    }).catch(err => {
+                        res.status(201).json({
+                            code: 201,
+                            message: '创建通知失败',
+                        })
+                    })
+                } else {
+                    res.status(201).json({
+                        code: 201,
+                        message: '应用已停止'
+                    })
+
+                }
+            }
+
+        }).catch(error => {
+            // 处理查找应用的错误
+            res.status(500).json({
+                code: 500,
+                message: '查找应用出错',
+                error: error
+            })
+        })
+    }
+}
+
+/**
+ * # 删除应用
+ * ## 参数
+ * 1. appid
+ *
+ * 请求该接口需要管理员Token，在请求头设置即可
+ */
+
 exports.deleteApp = (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{msg}] = err.errors
+        const [{ msg }] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -86,3 +157,4 @@ exports.deleteApp = (req, res) => {
         })
     }
 }
+

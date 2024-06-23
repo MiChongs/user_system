@@ -7,11 +7,12 @@ const globals = require('./global/index')
 const cors = require('cors');
 const {expressjwt} = require("express-jwt");
 const {body, validationResult} = require('express-validator');
-const boom = require('boom')
 const secretKey = "Voyage";
 app.use(expressjwt({algorithms: ['HS256'], secret: process.env.ADMIN_PASSWORD}).unless({
-    path: ['/api/user/register', '/api/user/login', '/api/admin/login']
+    path: ['/api/user/register', '/api/user/login', '/api/admin/login','/api/user/logout']
 }));
+const requestIp = require('request-ip');
+app.use(requestIp.mw())
 app.use(function (err, req, res, next) {
     if (err.name === 'UnauthorizedError') {
         res.status(401).json({
@@ -80,9 +81,18 @@ app.use("/", routes); //新增
 globals.User.sync().then(r => console.debug("User synced successfully.")).catch(e => console.error(e));
 globals.App.sync().then(r => console.debug("App synced successfully.")).catch(e => console.error(e));
 globals.Token.sync().then(r => console.debug("Token synced successfully.")).catch(e => console.error(e));
+globals.Card.sync().then(r => console.debug("Card synced successfully"))
+globals.Notification.sync().then(r => console.debug("Notification synced successfully"))
 app.listen(3000, () => {
     console.log("server is running");
 });
+// Typescript:
+// import { Reader } from '@maxmind/geoip2-node';
+
+// 使用示例
+const options = {
+    watchForUpdates: true
+}; // 假设options已定义
 
 try {
     globals.mysql.authenticate().then(r => console.log("Mysql authenticated!"));

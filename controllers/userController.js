@@ -21,7 +21,7 @@ const extractIPv4 = (ip) => {
  * 该函数主要用于处理客户端请求，根据请求是否授权，返回不同的响应。
  * 如果请求未授权，返回用户未授权的信息及客户端IP对应的地域信息。
  * 如果请求已授权，查询并返回所有用户数据。
- * 
+ *
  * @param {Error} err 错误对象，用于传递中间件过程中可能出现的错误。
  * @param {Object} req 请求对象，包含客户端的请求信息。
  * @param {Object} res 响应对象，用于向客户端发送响应。
@@ -135,7 +135,12 @@ exports.register = async function (req, res, next) {
                                 })
                             } else {
                                 // 创建新用户
-                                global.lookupAllGeoInfo(global.getClientIp(req)).then(info => {
+
+// 使用示例
+                                const options = {
+                                    watchForUpdates: true
+                                }; // 假设options已定义
+                                global.lookupAllGeoInfo(req.clientIp, options).then(info => {
                                     global.User.create({
                                         name: req.body.username,
                                         account: req.body.account,
@@ -162,13 +167,13 @@ exports.register = async function (req, res, next) {
                                             }]
                                         });
                                     })
-                                    }).catch(err => {
-                                        res.status(500).json({
-                                            code: 500,
-                                             message: '查询IP所在地区失败',
-                                             error: err
-                                        })
+                                }).catch(err => {
+                                    res.status(500).json({
+                                        code: 500,
+                                        message: '查询IP所在地区失败',
+                                        error: err.message
                                     })
+                                })
                             }
                         }).catch(error => {
                             // 处理数据库查询错误
