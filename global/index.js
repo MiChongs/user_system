@@ -216,6 +216,18 @@ const App = mysql.define('App', {
         defaultValue: 0,
         comment: '登录换绑机器码间隔'
     },
+    loginCheckIp:{
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        comment: '登录校验IP'
+    },
+    registerChceckIp: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        comment: '注册校验IP'
+    },
     multiDeviceLogin: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

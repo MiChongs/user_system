@@ -1,3 +1,10 @@
 /.env
 /node_modules/
 /.vscode/
+.idea/deployment.xml
+.idea/user_server.iml
+.idea/vcs.xml
+.idea/webServers.xml
+public/avatars/1.jpg
+public/avatars/123456.jpg
+public/avatars/beiming.jpg
