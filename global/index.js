@@ -4,6 +4,29 @@ const jwt = require("jsonwebtoken");
 const bodyParser = require('body-parser')
 const IP2Region = require('ip2region').default;
 const mysql = require("../database/index")
+const multer = require('multer')
+const mkdirp = require('mkdirp')
+const moment = require('moment')
+const fs = require("fs")
+// 获取当前的日期
+const nowDate = moment().format('YYYY-MM-DD')
+// 封装保存上传文件功能
+const upload = ()=>{
+    const storage  = multer.diskStorage({
+        destination:async (req,file,cb)=>{ // 指定上传后保存到哪一个文件夹中
+            await mkdirp(`./public/avatars/`)  // 创建目录
+            cb(null,`public/avatars`) //
+        },
+        filename:(req,file,cb)=>{ // 给保存的文件命名
+            let extname = path.extname(file.originalname); // 获取后缀名
+    
+            let fileName = path.parse(file.originalname).name // 获取上传的文件名
+            cb(null,`${fileName}-${Date.now()}${extname}`)
+        }
+    })
+
+    return multer( {storage})
+}
 function isEmptyStr(s) {
     return s === undefined || s == null || s === '';
 }
@@ -337,15 +360,6 @@ const User = mysql.define('User', {
     timestamps: true,
 });
 
-function getClientIp(req) {
-    return req.headers['x-forwarded-for'] ||
-        req.ip ||
-        req.connection.remoteAddress ||
-        req.socket.remoteAddress ||
-        req.connection.socket.remoteAddress ||
-        '';
-}
-
 // 上述代码是直接获取的IPV4地址，如果获取到的是IPV6，则通过字符串的截取来转换为IPV4地址。
 function ipv6ToV4(ip) {
     if (ip.split(',').length > 0) {
@@ -408,5 +422,7 @@ module.exports.crypto = crypto;
 module.exports.bodyParser = bodyParser;
 module.exports.jwt = jwt;
 module.exports.ipRegion = IP2Region;
-module.exports.getClientIp = getClientIp;
 module.exports.lookupAllGeoInfo = lookupAllGeoInfo;
+module.exports.upload = upload;
+module.exports.fs = fs;
+module.exports.moment = moment;

@@ -1,11 +1,17 @@
 const global = require("../global/index")
-const {validationResult} = require("express-validator");
+const { validationResult } = require("express-validator");
 const globals = require("../global");
 const bcrypt = require("bcrypt");
 const res = require("express/lib/response");
-const {isEmptyStr} = require("../global");
+const { isEmptyStr } = require("../global");
 const axios = require('axios')
 const iconv = require("iconv-lite");
+const path = require('path')
+// 引入配置好的 multerConfig
+// 上传到服务器地址
+const BaseURL = process.env.BASE_URL
+// 上传到服务器的目录
+const avatarPath = '/public/avatar'
 const extractIPv4 = (ip) => {
     const ipv4Regex = /::ffff:(\d+\.\d+\.\d+\.\d+)/;
     const match = ip.match(ipv4Regex);
@@ -39,7 +45,7 @@ exports.list = async function (err, req, res, next) {
         res.json({
             code: '201',
             message: '用户未授权',
-            region: [{result: result, ip: global.getClientIp(req)}]
+            region: [{ result: result, ip: global.getClientIp(req) }]
         })
         return
     }
@@ -74,7 +80,7 @@ exports.register = async function (req, res, next) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{msg}] = err.errors
+        const [{ msg }] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -116,15 +122,13 @@ exports.register = async function (req, res, next) {
                 }).then(async count => {
                     if (count >= 1) {
                         // 如果账号已存在，返回401错误并提示用户已存在
-                        res.status(401).json({code: "401", msg: "用户已存在"});
+                        res.status(401).json({ code: "401", msg: "用户已存在" });
                     } else {
                         // 查询用户注册IP所在地区
-                        const query = new global.ipRegion();
-                        const result = await query.search(global.getClientIp(req))
                         // 检查是否已存在相同IP注册的用户
                         global.User.count({
                             where: {
-                                register_ip: global.getClientIp(req)
+                                register_ip: req.clientIp
                             }
                         }).then(count => {
                             if (count >= 1) {
@@ -136,7 +140,7 @@ exports.register = async function (req, res, next) {
                             } else {
                                 // 创建新用户
 
-// 使用示例
+                                // 使用示例
                                 const options = {
                                     watchForUpdates: true
                                 }; // 假设options已定义
@@ -145,7 +149,7 @@ exports.register = async function (req, res, next) {
                                         name: req.body.username,
                                         account: req.body.account,
                                         password: bcrypt.hashSync(req.body.password, 10),
-                                        register_ip: globals.getClientIp(req),
+                                        register_ip: req.clientIp,
                                         register_province: info.city.provinceName,
                                         register_city: info.city.cityNameZh,
                                         register_isp: info.asn.autonomousSystemOrganization,
@@ -185,7 +189,7 @@ exports.register = async function (req, res, next) {
                     }
                 }).catch(error => {
                     // 处理数据库查询错误
-                    res.json({code: "403", msg: "查询数据库出现错误" + error.message});
+                    res.json({ code: "403", msg: "查询数据库出现错误" + error.message });
                     globals.User.sync().then(r => {
                         console.debug(r)
                     }).catch(
@@ -210,7 +214,7 @@ exports.register = async function (req, res, next) {
 exports.devices = function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{msg}] = err.errors
+        const [{ msg }] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -263,7 +267,7 @@ exports.devices = function (req, res) {
 exports.deleteDevice = function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{msg}] = err.errors
+        const [{ msg }] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -331,7 +335,7 @@ exports.deleteDevice = function (req, res) {
 exports.logout = async function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{msg}] = err.errors
+        const [{ msg }] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -398,4 +402,129 @@ exports.logout = async function (req, res) {
 
 exports.delete = async function (req, res, next) {
 
+}
+
+exports.uploadAvatar = async function (req, res) {
+    const err = validationResult(req)
+    if (!err.isEmpty()) {
+        // 如果存在验证错误，返回400错误并附带错误信息
+        const [{ msg }] = err.errors
+        res.status(400).json({
+            code: 400,
+            msg: msg,
+        })
+    } else {
+        await global.App.findByPk(req.params.appid || req.body.appid).then(async app => {
+            if (app == null) {
+                return res.status(400).json({
+                    code: 400,
+                    message: '无法找到该应用'
+                })
+            }
+            if (app instanceof global.App) {
+                await global.Token.findOne({
+                    where: {
+                        token: req.body.token,
+                        appid: req.body.appid
+                    }
+                }).then(async user => {
+                    if (user == null) {
+                        return res.status(400).json({
+                            code: 400,
+                            message: '无法找到该登录状态'
+                        })
+                    } else {
+                        if (user instanceof global.Token) {
+                            if (!req.files) {
+                                return res.status(400).json({
+                                    code: 400,
+                                    message: '没有上传文件'
+                                })
+                            } else {
+                                try {
+                                    let fileName;
+                                    let uploadPath;
+                                    console.log(req.files);
+                                    fileName = req.files.file;
+                                    uploadPath = 'public/avatars/' + user.account + path.extname(fileName.name);
+                                    fileName.mv(uploadPath, function (err) {
+                                        if (err) {
+                                            res.status(201).json({
+                                                code: 201,
+                                                message: '上传失败',
+                                                error: err.message
+                                            })
+                                        } else {
+                                            global.User.findOne({
+                                                where: {
+                                                    account: user.account,
+                                                    appid: req.body.appid
+                                                }
+                                            }).then(user => {
+                                                user.update({
+                                                    avatar: process.env.BASE_SERVER_URL + ':' + process.env.SERVER_PORT + '/avatars/' + path.basename(uploadPath)
+                                                }).then(result => {
+                                                    res.status(200).json({
+                                                        code: 200,
+                                                        message: '上传成功',
+                                                        data: [
+                                                            {
+                                                                avatar: result.avatar
+                                                            }
+                                                        ]
+                                                    })
+                                                }).catch(error => {
+                                                    res.status(201).json({
+                                                        code: 201,
+                                                        message: '更新用户失败',
+                                                        error: error.message
+                                                    })
+                                                })
+                                            }).catch(error => {
+                                                res.status(201).json({
+                                                    code: 201,
+                                                    message: '查找用户出错',
+                                                    error: error.message
+                                                })
+                                            })
+                                        }
+                                    });
+                                    //res.send('successfully')
+                                    return
+                                } catch (error) {
+                                    res.status(201).json({
+                                        code: 201,
+                                        message: '上传失败',
+                                        error: error.message
+                                    })
+                                    return
+                                }
+
+                            }
+                        } else {
+                            res.status(201).json({
+                                code: 201,
+                                message: '无法找到该用户'
+                            })
+                            console.log(req.body.token)
+                            return
+                        }
+                    }
+                }).catch(error => {
+                    res.status(201).json({
+                        code: 201,
+                        message: error.message
+                    })
+                    return
+                })
+            }
+
+        }).catch(error => {
+            res.status(500).json({
+                code: 500,
+                message: '查找应用出错',
+                error: error
+            })
+        })
+    }
 }

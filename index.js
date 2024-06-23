@@ -2,15 +2,22 @@ const express = require("express");
 const routes = require("./routes/index"); //新增
 const app = express();
 const sequelize = require('sequelize')
-const {Sequelize, DataTypes} = require("sequelize");
+const { Sequelize, DataTypes } = require("sequelize");
 const globals = require('./global/index')
 const cors = require('cors');
-const {expressjwt} = require("express-jwt");
-const {body, validationResult} = require('express-validator');
-const secretKey = "Voyage";
-app.use(expressjwt({algorithms: ['HS256'], secret: process.env.ADMIN_PASSWORD}).unless({
-    path: ['/api/user/register', '/api/user/login', '/api/admin/login','/api/user/logout']
+const { expressjwt } = require("express-jwt");
+const { body, validationResult } = require('express-validator');
+const helmet = require('helmet')
+const fileUpload = require('express-fileupload');
+const path = require('path');
+var ejs = require('ejs');
+app.use(expressjwt({ algorithms: ['HS256'], secret: process.env.ADMIN_PASSWORD }).unless({
+    path: ['/api/user/register', '/api/user/login', '/api/admin/login', '/api/user/logout', /^\/public\/.*/, /^\/avatars\/.*/,
+        /^\/static\/.*/,
+        /^\/user_disk\/.*/,
+        /^\/user_video\/.*/]
 }));
+app.use(helmet())
 const requestIp = require('request-ip');
 app.use(requestIp.mw())
 app.use(function (err, req, res, next) {
@@ -22,13 +29,17 @@ app.use(function (err, req, res, next) {
         return
     }
     if (err) {
-        res.status(500).json({status: 'fail'});
+        res.status(500).json({ status: 'fail' });
     }
 })
 app.use(cors());
+app.engine('html', ejs.__express);
+app.set('view engine', 'html');
 app.set('trust proxy', 'loopback');
 app.use(globals.bodyParser.json());
-app.use(globals.bodyParser.urlencoded({extended: false}));
+app.use('/avatars', express.static(path.resolve(__dirname, './public/avatars')))
+app.use(fileUpload());
+app.use(globals.bodyParser.urlencoded({ extended: true }));
 app.all('*', function (req, res, next) {
     res.header('Access-Control-Allow-Origin', '*');
     //Access-Control-Allow-Headers ,可根据浏览器的F12查看,把对应的粘贴在这里就行
@@ -37,15 +48,8 @@ app.all('*', function (req, res, next) {
     res.header('Content-Type', 'application/json;charset=utf-8');
     next();
 });
-const {resolve} = require("node:path");
-const {jwt} = require("./global");
-
-exports.generateToken = function (payload) {
-    return "Bearer " +
-        jwt.sign(payload, secretKey, {
-            expiresIn: '7d',
-        });
-};
+const { resolve } = require("node:path");
+const { jwt } = require("./global");
 
 let verifyToken = async function (token) {
     let newToken = token
@@ -63,18 +67,15 @@ let verifyToken = async function (token) {
 };
 
 app.use((req, res, next) => {
-//获取header中的token，并验证
+    //获取header中的token，并验证
     if (req.headers.authorization) {
         const flag = verifyToken(req.headers.authorization)
         if (!flag) {
-            res.send({status: 'fail'})
+            res.send({ status: 'fail' })
         }
     }
-//验证成功继续
+    //验证成功继续
     next()
-})
-app.get("/admin", (req, res) => {
-    res.sendFile(resolve(__dirname, 'client/dist/admin', 'index.html'));
 })
 
 app.use("/", routes); //新增
@@ -83,7 +84,7 @@ globals.App.sync().then(r => console.debug("App synced successfully.")).catch(e 
 globals.Token.sync().then(r => console.debug("Token synced successfully.")).catch(e => console.error(e));
 globals.Card.sync().then(r => console.debug("Card synced successfully"))
 globals.Notification.sync().then(r => console.debug("Notification synced successfully"))
-app.listen(3000, () => {
+app.listen(process.env.SERVER_PORT, () => {
     console.log("server is running");
 });
 // Typescript:

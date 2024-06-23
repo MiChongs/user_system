@@ -1,8 +1,8 @@
 const express = require("express");
 const userController = require("../controllers/userController");
-const {body} = require("express-validator");
-
+const { body, check } = require("express-validator");
 const userRouter = express.Router();
+const globals = require("../global/index");
 
 const normalBodyValidator = [
     body('appid').notEmpty().withMessage("隶属于应用id不得为空").isInt().withMessage("应用id不符合要求"), body('account').notEmpty().withMessage("账号不得为空").isAscii().withMessage("账号不符合要求"),
@@ -25,4 +25,5 @@ userRouter.post("/devices", [
 ], userController.devices);
 userRouter.delete('/logout', userBodyValidator, userController.logout)
 userRouter.delete('/logoutDevice', userBodyValidator, userController.deleteDevice)
+userRouter.post('/uploadAvatar', userController.uploadAvatar)
 module.exports = userRouter;
