@@ -298,13 +298,11 @@ exports.deleteDevice = function (req, res) {
                             res.status(200).json({
                                 code: 200,
                                 message: '登出成功',
-                                data: [
-                                    {
-                                        account: result.account,
-                                        token: result.token,
-                                        markcode: result.markcode
-                                    }
-                                ]
+                                data: {
+                                    account: result.account,
+                                    token: result.token,
+                                    markcode: result.markcode
+                                }
                             })
                         }).catch(error => {
                             res.status(201).json({
@@ -462,7 +460,7 @@ exports.uploadAvatar = async function (req, res) {
                                                 }
                                             }).then(user => {
                                                 user.update({
-                                                    avatar: process.env.BASE_SERVER_URL + ':' + process.env.SERVER_PORT + '/avatars/' + path.basename(uploadPath)
+                                                    avatar: process.env.BASE_SERVER_URL + '/avatars/' + path.basename(uploadPath)
                                                 }).then(result => {
                                                     res.status(200).json({
                                                         code: 200,

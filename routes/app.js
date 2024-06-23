@@ -14,6 +14,8 @@ router.delete("/delete", [
     body("appid").not().isEmpty().withMessage("应用ID是必须的"),
 ], appController.deleteApp);
 
+router.post("/list",  appController.apps);
+
 router.post('/notification/create', [
     body("appid").not().isEmpty().withMessage("应用ID是必须的"),
     body("title").not().isEmpty().withMessage("通知标题是必须的"),

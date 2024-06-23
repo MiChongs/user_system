@@ -158,3 +158,16 @@ exports.deleteApp = (req, res) => {
     }
 }
 
+exports.apps = function (req, res) {
+    global.App.findAll().then(result => {
+        res.status(200).json({
+            code: 200,
+            message: result
+        })
+    }).catch(error => {
+        res.status(500).json({
+            code: 500,
+            message: error
+        })
+    })
+}
