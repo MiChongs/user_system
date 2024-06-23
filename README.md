@@ -21,8 +21,8 @@
 
 ### 微信
 
-<img src="C:\Users\WKM\Pictures\微信图片_20240623173743.jpg" alt="微信" style="zoom:33%;" />
+![微信](https://p.ananas.chaoxing.com/star3/origin/c597ad9a85489bb5c0ee48a056553e66)
 
 ### 支付宝
 
-<img src="C:\Users\WKM\Pictures\微信图片_20240623173923.jpg" style="zoom:33%;" />
+<img src="http://p.ananas.chaoxing.com/star3/origin/1f9a8c2171b752af136191b68b37ac17"/>
