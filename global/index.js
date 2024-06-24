@@ -105,6 +105,7 @@ const Card = mysql.define('Card', {
         type: DataTypes.ENUM,
         allowNull: false,
         comment: '卡密状态',
+        defaultValue: 'normal',
         values: ['normal', 'used', 'expired']
     },
     card_award_num: {

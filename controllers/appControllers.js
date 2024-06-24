@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const global = require("../global");
 const bcrypt = require("bcrypt");
-const { validationResult } = require("express-validator");
+const {validationResult} = require("express-validator");
 
 /**
  * # 创建应用
@@ -14,7 +14,7 @@ const { validationResult } = require("express-validator");
 exports.create = (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -60,7 +60,7 @@ exports.create = (req, res) => {
 exports.createNotification = async function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -111,6 +111,43 @@ exports.createNotification = async function (req, res) {
     }
 }
 
+exports.notifications = async function (req, res) {
+    const err = validationResult(req)
+    if (!err.isEmpty()) {
+        const [{msg}] = err.errors
+        res.status(400).json({
+            code: 400,
+            msg: msg,
+        })
+    } else {
+        global.App.findByPk(req.params.appid || req.body.appid).then(app => {
+            if (app) {
+                global.Notification.findAll({
+                    where: {
+                        appid: app.id
+                    }
+                }).then(result => {
+                    res.status(200).json({
+                        code: 200,
+                        message: result,
+                    })
+                }).catch(error => {
+                    res.status(400).json({
+                        code: 400,
+                        message: '查找应用通知失败',
+                        data: error.message
+                    })
+                })
+            } else {
+                res.status(401).json({
+                    code: 401,
+                    message: '应用不存在'
+                })
+            }
+        })
+    }
+}
+
 /**
  * # 删除应用
  * ## 参数
@@ -122,7 +159,7 @@ exports.createNotification = async function (req, res) {
 exports.deleteApp = (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -194,7 +231,7 @@ exports.appConfig = function (req, res) {
 exports.updateAppConfig = function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -246,6 +283,76 @@ exports.updateAppConfig = function (req, res) {
             res.status(500).json({
                 code: 500,
                 message: error
+            })
+        })
+    }
+}
+
+exports.generateCard = function (req, res) {
+    const err = validationResult(req)
+    if (!err.isEmpty()) {
+        const [{msg}] = err.errors
+        res.status(400).json({
+            code: 400,
+            msg: msg,
+        })
+    } else {
+        global.App.findByPk(req.params.appid || req.body.appid).then(app => {
+            if (app instanceof global.App) {
+                const num = parseInt(req.body.num) || 1
+                const length = parseInt(req.body.length) || 12
+                if (length < 6) {
+                    res.status(201).json({
+                        code: 201,
+                        message: '卡号长度不能小于6位'
+                    })
+                    return
+                }
+                if (num > 1000) {
+                    res.status(201).json({
+                        code: 201,
+                        message: '一次最多生成1000张卡'
+                    })
+                    return
+                }
+                try {
+                    for (let i = 0; i < num; i++) {
+                        const card = global.stringRandom(length)
+                        global.Card.create({
+                            card_code: card,
+                            card_status: 'normal',
+                            card_type: req.body.card_type,
+                            appid: req.body.appid,
+                            card_award_num: req.body.card_award_num,
+                            card_code_expire: global.moment().add(parseInt(req.body.card_code_expire), 'days').format('YYYY-MM-DD HH:mm:ss'),
+                            card_time: global.moment().format('YYYY-MM-DD HH:mm:ss')
+                        }).then(r => {
+                            console.log(r)
+                        })
+                    }
+                    return res.status(200).json({
+                        code: 200,
+                        message: '生成卡成功',
+                        data: {
+                            num: num,
+                            length: length
+                        }
+                    })
+                } catch (e) {
+
+                }
+
+            } else {
+                res.status(201).json({
+                    code: 201,
+                    message: '无法查找该应用',
+                })
+            }
+        }).catch(error => {
+            res.status(500).json({
+                code: 500,
+                message: '查找应用失败',
+                error: error.message
             })
         })
     }

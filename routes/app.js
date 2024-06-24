@@ -31,6 +31,19 @@ router.post('/notification/create', [
     body("content").not().isEmpty().withMessage("通知内容是必须的"),
 ], appController.createNotification)
 
+router.post('/notification/list', [
+    body("appid").not().isEmpty().withMessage("应用ID是必须的"),
+], appController.notifications)
+
+router.post('/card/generate', [
+    body("appid").not().isEmpty().withMessage("应用ID是必须的"),
+    body("num").not().isEmpty().withMessage("卡密数量是必须的"),
+    body("length").not().isEmpty().withMessage("卡密长度是必须的"),
+    body("card_type").not().isEmpty().withMessage("卡密类型是必须的"),
+    body("card_award_num").not().isEmpty().withMessage("卡密奖励数量是必须的"),
+    body("card_code_expire").not().isEmpty().withMessage("卡密到期时间是必须的"),
+], appController.generateCard)
+
 let verifyToken = async function (token) {
     let newToken = token
     if (newToken.indexOf('Bearer') >= 0) {
