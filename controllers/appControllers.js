@@ -324,6 +324,7 @@ exports.generateCard = function (req, res) {
                             card_type: req.body.card_type,
                             appid: req.body.appid,
                             card_award_num: req.body.card_award_num,
+                            card_memo: req.body.card_memo,
                             card_code_expire: global.moment().add(parseInt(req.body.card_code_expire), 'days').format('YYYY-MM-DD HH:mm:ss'),
                             card_time: global.moment().format('YYYY-MM-DD HH:mm:ss')
                         }).then(r => {
@@ -347,6 +348,45 @@ exports.generateCard = function (req, res) {
                     code: 201,
                     message: '无法查找该应用',
                 })
+            }
+        }).catch(error => {
+            res.status(500).json({
+                code: 500,
+                message: '查找应用失败',
+                error: error.message
+            })
+        })
+    }
+}
+
+exports.cards = function (req, res) {
+    const err = validationResult(req)
+    if (!err.isEmpty()) {
+        const [{msg}] = err.errors
+        res.status(400).json({
+            code: 400,
+            msg: msg,
+        })
+    } else {
+        global.App.findByPk(req.params.appid || req.body.appid).then(app => {
+            if (app instanceof global.App) {
+                global.Card.findAll({
+                    where: {
+                        appid: req.params.appid || req.body.appid
+                    }
+                }).then(cards => {
+                    res.status(200).json({
+                        code: 200,
+                        message: '获取卡成功',
+                        data: cards
+                    })
+                }).catch(error => {
+                    res.status(500).json({
+                        code: 500,
+                        message: '获取卡失败',
+                       error: error.message
+                   })
+               })
             }
         }).catch(error => {
             res.status(500).json({

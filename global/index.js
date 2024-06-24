@@ -9,6 +9,7 @@ const mkdirp = require('mkdirp')
 const moment = require('moment')
 const fs = require("fs");
 const bcrypt = require("bcrypt");
+const ejs = require('ejs');
 const Boom = require('@hapi/boom');
 const stringRandom = require('string-random');
 const stringFormat = require('string-kit').format;
@@ -16,7 +17,45 @@ const {log} = require("console");
 const nowDate = moment().format('YYYY-MM-DD')
 const dayjs = require('dayjs');
 const emptinessCheck = require('emptiness-check');
+const nodemailer = require('nodemailer');
+const redis = require('redis');
+const redisClient = redis.createClient({
+    host: process.env.REDIS_HOST,
+    port: process.env.REDIS_PORT,
+    password: process.env.REDIS_PASSWORD,
+    db: 0,
+    retry_strategy: function (options) {
+        if (options.error && options.error.code === 'ECONNREFUSED') {
+            // 尝试重新连接
+            return new Error('Redis 连接失败');
+        }
+        if (options.total_retry_time > 1000 * 60 * 60) {
+        }
+    }
+});
 // 封装保存上传文件功能
+
+// 监听客户端连接 Redis 成功，成功后执行回调
+redisClient.on("ready", () => {
+    //订阅主题
+});
+// 监听客户端连接 Redis 异常，异常后执行回调
+redisClient.on("error", function (error) {
+    console.log(error);
+});
+// 监听订阅主题成功，成功后执行回调
+redisClient.on("subscribe", (channel, count) => {
+    console.log(`订阅频道：${channel}，当前总共订阅${count}个频道。`);
+});
+// 监听 Redis 发布的消息，收到消息后执行回调。
+redisClient.on("message", (channel, message) => {
+    console.log(`当前频道：${channel}，收到消息为：${message}`);
+});
+// 监听取消订阅主题，取消后执行回调
+redisClient.on("unsubscribe", (channel, count) => {
+    console.log(`取消订阅频道：${channel}，当前总共订阅${count}个频道。`);
+});
+
 const upload = () => {
     const storage = multer.diskStorage({
         destination: async (req, file, cb) => { // 指定上传后保存到哪一个文件夹中
@@ -40,6 +79,94 @@ function isEmptyStr(s) {
 
 module.exports.isEmptyStr = isEmptyStr;
 
+const RegisterLog = mysql.define('RegisterLog', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+        comment: '注册日志ID'
+    },
+    user_id: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '用户ID'
+    },
+    register_time: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
+        comment: '注册时间'
+    },
+    register_ip: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '注册IP'
+    },
+    register_address: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '注册地址'
+    },
+    register_device: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '注册设备'
+    },
+    register_isp: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '注册运营商'
+    },
+    appid: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '应用ID'
+    }
+})
+
+const LoginLog = mysql.define('LoginLog', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+        comment: '登录日志ID'
+    },
+    user_id: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '用户ID'
+    },
+    login_time: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
+        comment: '登录时间'
+    },
+    login_ip: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '登录IP'
+    },
+    login_address: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '登录地址'
+    },
+    login_device: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '登录设备'
+    },
+    login_isp: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '登录运营商'
+    },
+    appid: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '应用ID'
+    }
+})
+
 const Log = mysql.define('Log', {
     id: {
         type: DataTypes.INTEGER,
@@ -51,7 +178,7 @@ const Log = mysql.define('Log', {
         type: DataTypes.ENUM,
         allowNull: false,
         comment: '日志类型',
-        values: ['login', 'register', 'card_use', 'pay_vip', 'card_generate', 'admin_login', 'logout', 'updateAppConfig', 'createApp', 'logoutDevice', 'updateUser', 'daily']
+        values: ['login', 'register', 'vip_time_add', 'integral_add', 'card_use', 'pay_vip', 'card_generate', 'admin_login', 'logout', 'updateAppConfig', 'createApp', 'logoutDevice', 'updateUser', 'daily']
     },
     log_content: {
         type: DataTypes.STRING,
@@ -112,6 +239,11 @@ const Card = mysql.define('Card', {
         type: DataTypes.INTEGER,
         allowNull: false,
         comment: '卡密奖励数量'
+    },
+    card_memo: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '卡密备注'
     },
     card_code_expire: {
         type: DataTypes.DATE,
@@ -327,7 +459,42 @@ const App = mysql.define('App', {
         allowNull: false,
         defaultValue: 0,
         comment: '签到奖励数'
-    }
+    },
+    smtpHost: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: '',
+        comment: 'SMTP服务器'
+    },
+    smtpPort: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'SMTP端口'
+    },
+    smtpSecure: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+        defaultValue: false,
+        comment: 'SMTP是否使用SSL'
+    },
+    smtpUser: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: '',
+        comment: 'SMTP用户名'
+    },
+    smtpPassword: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: '',
+        comment: 'SMTP密码'
+    },
+    smtpForm: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: '',
+        comment: 'SMTP发件人'
+    },
 })
 
 const User = mysql.define('User', {
@@ -345,7 +512,7 @@ const User = mysql.define('User', {
         allowNull: false
     }, password: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
         comment: '用户密码',
     },
     name: {
@@ -354,7 +521,12 @@ const User = mysql.define('User', {
     },
     avatar: {
         type: DataTypes.STRING,
-        comment: '用户头像'
+        comment: '用户头像',
+        defaultValue: process.env.BASE_SERVER_URL + '/avatars/0.png'
+    },
+    email: {
+        type: DataTypes.STRING,
+        comment: '用户邮箱'
     },
     register_ip: {
         type: DataTypes.STRING,
@@ -458,7 +630,6 @@ async function lookupAllGeoInfo(ip, options) {
                     registeredCountryNameZh: countryResponse.registeredCountry.names['zh-CN']
                 };
             } catch (error) {
-
                 allInfo.country = {
                     registeredCountryNameZh: '未知'
                 };
@@ -500,7 +671,20 @@ async function lookupAllGeoInfo(ip, options) {
         return allInfo;
     } catch (error) {
         console.error('Error looking up all geo information:', error);
-        throw error; // 重新抛出错误，以便调用者可以处理
+        const allInfo = {};
+        allInfo.country = {
+            registeredCountryNameZh: '未知'
+        };
+        allInfo.city = {
+            countryIsoCode: 0,
+            provinceName: '未知',
+            cityNameZh: '未知'
+        };
+        allInfo.asn = {
+            autonomousSystemNumber: 0,
+            autonomousSystemOrganization: 'LOCAL ASN'
+        };
+        return allInfo;
     }
 }
 
@@ -517,7 +701,11 @@ function logString(type, ...format) {
     } else if (type === 'logutDevice') {
         content = '{0} 使用设备码 {1} 在 {2} 进行删除'.stringFormat(format);
     } else if (type === 'card_use') {
-        content = '{0} 在 {1} 使用了 {2} 卡密'.stringFormat(format);
+        content = stringFormat('%s 在 %s 使用了 %s 卡密', format[0], format[1], format[2]);
+    } else if (type === 'vip_time_add') {
+        content = stringFormat('%s 在 %s 使用了 %s 卡密,天数增加 %s 天,新到期时间:%s', format[0], format[1], format[2], format[3], format[4], format[5]);
+    } else if (type === 'integral_add') {
+        content = stringFormat('%s 在 %s 使用了 %s 卡密,积分增加 %s 个积分,新积分:%s', format[0], format[1], format[2], format[3], format[4], format[5]);
     } else if (type === 'pay_vip') {
         content = '{0} 在 {1} 充值了 {2} 会员'.stringFormat(format);
     } else if (type === 'card_generate') {
@@ -564,3 +752,8 @@ module.exports.logString = logString;
 module.exports.Boom = Boom;
 module.exports.dayjs = dayjs;
 module.exports.emptinessCheck = emptinessCheck;
+module.exports.RegisterLog = RegisterLog;
+module.exports.LoginLog = LoginLog;
+module.exports.nodemailer = nodemailer;
+module.exports.ejs = ejs;
+module.exports.redisClient = redisClient;

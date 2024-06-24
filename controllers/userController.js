@@ -1,15 +1,15 @@
 const global = require("../global/index")
-const { validationResult } = require("express-validator");
+const {validationResult} = require("express-validator");
 const globals = require("../global");
 const bcrypt = require("bcrypt");
 const res = require("express/lib/response");
-const { isEmptyStr } = require("../global");
+const {isEmptyStr} = require("../global");
 const axios = require('axios')
 const iconv = require("iconv-lite");
 const path = require('path')
-const { Op } = require("sequelize");
-const { error } = require("console");
-const boom = require('express-boom')
+const {Op} = require("sequelize");
+const fs = require('fs')
+const {error} = require("console");
 // 引入配置好的 multerConfig
 // 上传到服务器地址
 const BaseURL = process.env.BASE_URL
@@ -48,7 +48,7 @@ exports.list = async function (err, req, res, next) {
         res.json({
             code: '201',
             message: '用户未授权',
-            region: [{ result: result, ip: global.getClientIp(req) }]
+            region: [{result: result, ip: global.getClientIp(req)}]
         })
         return
     }
@@ -83,7 +83,7 @@ exports.register = async function (req, res, next) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -127,7 +127,7 @@ exports.register = async function (req, res, next) {
                     }).then(async count => {
                         if (count >= 1) {
                             // 如果账号已存在，返回401错误并提示用户已存在
-                            res.status(401).json({ code: "401", msg: "用户已存在" });
+                            res.status(401).json({code: "401", msg: "用户已存在"});
                         } else {
                             // 查询用户注册IP所在地区
                             // 检查是否已存在相同IP注册的用户
@@ -195,11 +195,10 @@ exports.register = async function (req, res, next) {
                                                             userConfig.integral += app.invite_award_num
                                                         } else {
                                                             if (userConfig.vip_time == null) {
-                                                                userConfig.vip_time = Date().now()
+                                                                userConfig.vip_time = global.moment().format('YYYY-MM-DD HH:mm:ss')
                                                             }
                                                             userConfig.vip_time += global.moment().add(app.invite_award_num, 'm')
                                                         }
-                                                        return
                                                     } else {
                                                         res.status(400).json({
                                                             code: 400,
@@ -209,8 +208,25 @@ exports.register = async function (req, res, next) {
                                                 })
                                                 return
                                             }
-                                            global.User.create(userConfig).then((result) => {
+                                            global.User.create(userConfig).then(async (result) => {
                                                 // 用户创建成功，返回200成功码和用户信息
+                                                await global.Log.create({
+                                                    log_type: 'register',
+                                                    log_content: global.logString('register', req.clientIp, req.body.markcode, global.moment().format('YYYY-MM-DD HH:mm:ss')),
+                                                    log_ip: req.clientIp,
+                                                    log_time: global.moment().format('YYYY-MM-DD HH:mm:ss'),
+                                                    log_user_id: result.account,
+                                                    appid: req.body.appid,
+                                                })
+                                                await global.RegisterLog.create({
+                                                    user_id: result.account,
+                                                    register_time: global.moment().format('YYYY-MM-DD HH:mm:ss'),
+                                                    register_ip: req.clientIp,
+                                                    register_address: info.city.provinceName + info.city.cityNameZh,
+                                                    register_isp: info.asn.autonomousSystemOrganization,
+                                                    appid: req.body.appid,
+                                                    register_device: req.body.markcode,
+                                                })
                                                 res.json({
                                                     code: 200,
                                                     message: '用户注册成功',
@@ -225,14 +241,13 @@ exports.register = async function (req, res, next) {
                                                     }]
                                                 });
                                             })
-                                            return
                                         }).catch(err => {
                                             res.status(500).json({
                                                 code: 500,
                                                 message: '查询IP所在地区失败',
                                                 error: err.message
                                             })
-                                            return
+
                                         })
                                     }
                                 }).catch(error => {
@@ -241,9 +256,7 @@ exports.register = async function (req, res, next) {
                                         code: 500,
                                         message: error
                                     })
-                                    return
                                 })
-                                return
                             } else {
                                 // 创建新用户
                                 const options = {
@@ -296,7 +309,7 @@ exports.register = async function (req, res, next) {
                                                     userConfig.integral += app.invite_award_num
                                                 } else {
                                                     if (userConfig.vip_time == null) {
-                                                        userConfig.vip_time = Date().now()
+                                                        userConfig.vip_time = global.moment().format('YYYY-MM-DD HH:mm:ss')
                                                     }
                                                     userConfig.vip_time += global.moment().add(app.invite_award_num, 'm')
                                                 }
@@ -309,6 +322,15 @@ exports.register = async function (req, res, next) {
                                                         log_time: global.moment().format('YYYY-MM-DD HH:mm:ss'),
                                                         log_user_id: result.account,
                                                         appid: req.body.appid,
+                                                    })
+                                                    await global.RegisterLog.create({
+                                                        user_id: result.account,
+                                                        register_time: global.moment().format('YYYY-MM-DD HH:mm:ss'),
+                                                        register_ip: req.clientIp,
+                                                        register_address: info.city.provinceName + info.city.cityNameZh,
+                                                        register_isp: info.asn.autonomousSystemOrganization,
+                                                        appid: req.body.appid,
+                                                        register_device: req.body.markcode,
                                                     })
                                                     res.status(200).json({
                                                         code: 200,
@@ -343,6 +365,15 @@ exports.register = async function (req, res, next) {
                                                 log_user_id: result.account,
                                                 appid: req.body.appid,
                                             })
+                                            await global.RegisterLog.create({
+                                                user_id: result.account,
+                                                register_time: global.moment().format('YYYY-MM-DD HH:mm:ss'),
+                                                register_ip: req.clientIp,
+                                                register_address: info.city.provinceName + info.city.cityNameZh,
+                                                register_isp: info.asn.autonomousSystemOrganization,
+                                                appid: req.body.appid,
+                                                register_device: req.body.markcode,
+                                            })
                                             res.status(200).json({
                                                 code: 200,
                                                 message: '用户注册成功',
@@ -356,7 +387,7 @@ exports.register = async function (req, res, next) {
                                                     vip_time: result.vip_time,
                                                 }]
                                             });
-                                            return
+
                                         })
                                     }
                                 }).catch(err => {
@@ -365,14 +396,14 @@ exports.register = async function (req, res, next) {
                                         message: '查询IP所在地区失败',
                                         error: err.message
                                     })
-                                    return
+
                                 })
 
                             }
                         }
                     }).catch(error => {
                         // 处理数据库查询错误
-                        res.json({ code: "403", msg: "查询数据库出现错误" + error.message });
+                        res.json({code: "403", msg: "查询数据库出现错误" + error.message});
                         globals.User.sync().then(r => {
                             console.debug(r)
                         }).catch(
@@ -398,13 +429,12 @@ exports.register = async function (req, res, next) {
             })
         })
     }
-    return
 }
 
 exports.devices = function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -457,7 +487,7 @@ exports.devices = function (req, res) {
 exports.deleteDevice = function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -523,7 +553,7 @@ exports.deleteDevice = function (req, res) {
 exports.logout = async function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -596,7 +626,7 @@ exports.uploadAvatar = async function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -721,7 +751,7 @@ exports.daily = function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.status(400).json({
             code: 400,
             msg: msg,
@@ -846,6 +876,387 @@ exports.daily = function (req, res) {
                 message: '查找应用出错',
                 error: error
             })
+        })
+    }
+}
+
+exports.useCard = function (req, res) {
+    const err = validationResult(req)
+    if (!err.isEmpty()) {
+        // 如果存在验证错误，返回400错误并附带错误信息
+        const [{msg}] = err.errors
+        res.status(400).json({
+            code: 400,
+            msg: msg,
+        })
+    } else {
+        global.App.findByPk(req.body.appid).then(app => {
+            if (app) {
+                global.Card.findOne({
+                    where: {
+                        card_code: req.body.card_code,
+                        appid: req.body.appid
+                    }
+                }).then(card => {
+                    if (card) {
+                        global.Token.findOne({
+                            where: {
+                                token: req.body.token,
+                                appid: req.body.appid
+                            }
+                        }).then(token => {
+                            if (token) {
+                                global.User.findOne({
+                                    where: {
+                                        account: token.account,
+                                        appid: req.body.appid
+                                    }
+                                }).then(async user => {
+                                    if (user) {
+                                        await global.Log.create({
+                                            log_type: 'card_use',
+                                            log_time: global.moment().format('YYYY-MM-DD HH:mm:ss'),
+                                            log_content: global.logString('card_use', user.account, global.moment().format('YYYY-MM-DD HH:mm:ss'), card.card_code),
+                                            log_ip: req.clientIp,
+                                            log_user_id: user.account,
+                                            appid: req.body.appid,
+                                        })
+                                        if (card.card_type === 'integral') {
+                                            user.update({
+                                                integral: user.integral + card.card_award_num
+                                            }).then(
+                                                async user => {
+                                                    await global.Log.create({
+                                                        log_type: 'integral_add',
+                                                        log_time: global.moment().format('YYYY-MM-DD HH:mm:ss'),
+                                                        log_content: global.logString('integral_add', user.account, global.moment().format('YYYY-MM-DD HH:mm:ss'), card.card_code, card.card_award_num, user.integral),
+                                                        log_ip: req.clientIp,
+                                                        log_user_id: user.account,
+                                                        appid: req.body.appid,
+                                                    })
+                                                    return res.status(200).json({
+                                                        code: 200,
+                                                        message: '使用成功',
+                                                        data: {
+                                                            integral: user.integral,
+                                                        }
+                                                    })
+                                                }
+                                            ).catch(error => {
+                                                return res.status(201).json({
+                                                    code: 201,
+                                                    message: '更新用户信息失败',
+                                                    error: error.message
+                                                })
+                                            })
+                                        } else {
+                                            user.update({
+                                                vip_time: global.moment(user.vip_time).add(card.card_award_num, 'days').format('YYYY-MM-DD HH:mm:ss')
+                                            }).then(async user => {
+                                                await global.Log.create({
+                                                    log_type: 'vip_time_add',
+                                                    log_time: global.moment().format('YYYY-MM-DD HH:mm:ss'),
+                                                    log_content: global.logString('vip_time_add', user.account, global.moment().format('YYYY-MM-DD HH:mm:ss'), card.card_code, card.card_award_num, global.moment(user.vip_time).format('YYYY-MM-DD HH:mm:ss')),
+                                                    log_ip: req.clientIp,
+                                                    log_user_id: user.account,
+                                                    appid: req.body.appid,
+                                                })
+                                                return res.status(200).json({
+                                                    code: 200,
+                                                    message: '使用成功'
+                                                })
+                                            })
+                                        }
+                                    } else {
+                                        return res.status(201).json({
+                                            code: 201,
+                                            message: '无法找到该用户'
+                                        })
+                                    }
+                                }).catch(error => {
+                                    return res.status(201).json({
+                                        code: 201,
+                                        message: '查找用户出错',
+                                        error: error.message
+                                    })
+                                })
+                            } else {
+                                return res.status(201).json({
+                                    code: 201,
+                                    message: '无法找到该登录状态'
+                                })
+                            }
+                        }).catch(
+                            error => {
+                                return res.status(201).json({
+                                    code: 201,
+                                    message: '查找登录状态出错',
+                                    error: error.message
+                                })
+                            }
+                        )
+                    } else {
+                        return res.status(201).json({
+                            code: 201,
+                            message: '卡密不存在'
+                        })
+                    }
+                }).catch(error => {
+                    return res.status(201).json({
+                        code: 201,
+                        message: '查找卡密出错',
+                        error: error.message
+                    })
+                })
+            }
+        })
+    }
+}
+
+exports.sendMail = function (req, res) {
+    const err = validationResult(req)
+    if (!err.isEmpty()) {
+        // 如果存在验证错误，返回400错误并附带错误信息
+        const [{msg}] = err.errors
+        res.status(400).json({
+            code: 400,
+            msg: msg,
+        })
+    } else {
+        global.App.findByPk(req.body.appid).then(async app => {
+            if (app != null) {
+                if (app.status) {
+                    if (!isEmptyStr(app.smtpHost) && !isEmptyStr(app.smtpUser) && !isEmptyStr(app.smtpPassword) && !isEmptyStr(app.smtpPort)) {
+                        global.Token.findOne({
+                            where: {
+                                token: req.body.token,
+                                appid: req.body.appid,
+                            }
+                        }).then(async token => {
+                            if (token != null) {
+                                global.User.findOne({
+                                    where: {
+                                        account: token.account,
+                                        appid: req.body.appid,
+                                    }
+                                }).then(async user => {
+                                    if (user != null) {
+                                        if (req.body.email.indexOf('@') > 0) {
+                                            if (req.body.mail_type === 'forgot') {
+                                                await global.redisClient.connect();
+                                                const result = await global.redisClient.get(req.body.email);
+                                                // 已存在此邮箱数据
+                                                if (result) {
+                                                    await global.redisClient.disconnect();
+                                                    return res.status(409).json({msg: '请不要重复发起请求，15分钟后可以再次发起。'});
+                                                }
+                                                // 创建nodemailer transporter
+                                                const transporter = global.nodemailer.createTransport({
+                                                    host: app.smtpHost,
+                                                    port: app.smtpPort,
+                                                    secure: app.smtpSecure,
+                                                    auth: {
+                                                        user: app.smtpUser,
+                                                        pass: app.smtpPassword,
+                                                    },
+                                                });
+                                                const sendVerificationEmail = async (to, verificationCode) => {
+                                                    const templatePath = path.join(__dirname, '../template/theme.ejs');
+                                                    const template = fs.readFileSync(templatePath, 'utf-8');
+                                                    const html = global.ejs.render(template, {
+                                                        username: user.name,
+                                                        verificationCode,
+                                                        senderName: app.name
+                                                    });
+                                                    const mailOptions = {
+                                                        from: app.smtpForm,
+                                                        to: req.body.email,
+                                                        subject: app.name + ' - 找回密码',
+                                                        html,
+                                                    };
+
+                                                    try {
+                                                        await transporter.sendMail(mailOptions);
+                                                        console.log('验证电子邮件已成功发送。');
+                                                        return res.status(200).json({msg: '验证电子邮件已成功发送。'});
+                                                    } catch (error) {
+                                                        console.error('发送电子邮件时出错：', error);
+                                                        await global.redisClient.disconnect();
+                                                        return res.status(500).json({msg: '发送电子邮件时出错：' + error});
+                                                    }
+                                                };
+
+                                                const storeVerificationCode = async (email, code) => {
+                                                    await global.redisClient.set(email, code, {
+                                                        EX: 60 * 15,
+                                                        NX: true,
+                                                    }); // 设置有效期为15分钟
+                                                    await global.redisClient.disconnect();
+                                                };
+                                                // 发送验证码邮件
+                                                // 生成验证码
+                                                const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+                                                await sendVerificationEmail(req.body.email, verificationCode);
+                                                // 存储验证码至 redis
+                                                await storeVerificationCode(req.body.email, verificationCode);
+                                            }
+                                        }
+                                    } else {
+                                        return res.status(201).json({
+                                            code: 201,
+                                            message: '无法找到该用户'
+                                        })
+                                    }
+                                }).catch(error => {
+                                    console.error(error)
+                                })
+                            } else {
+                                return res.status(201).json({
+                                    code: 201,
+                                    message: '登录状态不存在'
+                                })
+                            }
+                        }).catch(error => {
+                            return res.status(201).json({
+                                code: 201,
+                                message: '查找登录状态出错',
+                                error: error.message
+                            })
+                        })
+                    } else {
+                        return res.status(201).json({
+                            code: 201,
+                            message: '请先配置邮件服务器'
+                        })
+                    }
+                } else {
+                    return res.status(201).json({
+                        code: 201,
+                        message: '该应用已禁用'
+                    })
+                }
+            }
+        })
+    }
+}
+
+exports.forgotPassword = function (req, res) {
+    const err = validationResult(req)
+    if (!err.isEmpty()) {
+        // 如果存在验证错误，返回400错误并附带错误信息
+        const [{msg}] = err.errors
+        res.status(400).json({
+            code: 400,
+            msg: msg,
+        })
+    } else {
+        global.App.findByPk(req.body.appid).then(async app => {
+            if (app === null) {
+                return res.status(201).json({
+                    code: 201,
+                    message: '无法找到该应用'
+                })
+            } else {
+                if (!app.status) {
+                    return res.status(201).json({
+                        code: 201,
+                        message: '该应用已禁用'
+                    })
+                } else {
+                    if (!isEmptyStr(app.smtpHost) && !isEmptyStr(app.smtpUser) && !isEmptyStr(app.smtpPassword) && !isEmptyStr(app.smtpPort)) {
+                        global.Token.findOne({
+                            where: {
+                                token: req.body.token,
+                                appid: req.body.appid,
+                            }
+                        }).then(
+                            async token => {
+                                if (token === null) {
+                                    return res.status(201).json({
+                                        code: 201,
+                                        message: '无法找到该登录状态'
+                                    })
+                                } else {
+                                    global.User.findOne({
+                                        where: {
+                                            account: token.account,
+                                            appid: req.body.appid,
+                                        }
+                                    }).then(async user => {
+                                        if (user === null) {
+                                            return res.status(201).json({
+                                                code: 201,
+                                                message: '无法找到该用户'
+                                            })
+                                        } else {
+                                            await global.redisClient.connect();
+                                            const result = await global.redisClient.get(req.body.email);
+                                            // 已存在此邮箱数据
+                                            if (result) {
+                                                if (result === req.body.verify_code) {
+                                                    if (bcrypt.compareSync(req.body.new_password, user.password)) {
+                                                        res.status(201).json({
+                                                            code: 201,
+                                                            msg: '新密码不能与旧密码相同'
+                                                        });
+                                                        return global.redisClient.disconnect()
+                                                    } else {
+                                                        await user.update({
+                                                            password: bcrypt.hashSync(req.body.new_password, 10)
+                                                        }).then(async () => {
+                                                            res.status(200).json({
+                                                                code: 200,
+                                                                msg: '密码修改成功'
+                                                            });
+                                                        }).catch(error => {
+                                                            res.status(201).json({
+                                                                code: 201,
+                                                                message: '修改密码出错',
+                                                                error: error.message
+                                                            })
+                                                        })
+                                                        return global.redisClient.disconnect();
+                                                    }
+                                                } else {
+                                                    res.status(201).json({
+                                                        code: 201,
+                                                        msg: '验证码错误'
+                                                    });
+                                                    return global.redisClient.disconnect()
+                                                }
+                                            } else {
+                                                res.status(201).json({
+                                                    code: 201,
+                                                    msg: '未向该邮箱发送验证码，请检查邮箱是否正确。'
+                                                });
+                                                return global.redisClient.disconnect()
+                                            }
+                                        }
+                                    }).catch(error => {
+                                        return res.status(201).json({
+                                            code: 201,
+                                            message: '查找用户出错',
+                                            error: error.message
+                                        })
+                                    })
+                                }
+                            }
+                        ).catch(
+                            error => {
+                                return res.status(201).json({
+                                    code: 201,
+                                    message: '无法找到该登录状态'
+                                })
+                            }
+                        )
+                    } else {
+                        return res.status(201).json({
+                            code: 201,
+                            message: '该应用未配置邮件服务器'
+                        })
+                    }
+                }
+            }
         })
     }
 }

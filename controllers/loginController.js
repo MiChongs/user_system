@@ -82,7 +82,7 @@ exports.login = function (req, res, next) {
                                             account: req.body.account,
                                             appid: req.body.appid,
                                         }
-                                    }).then(result => {
+                                    }).then(async result => {
                                             const user = result;
                                             // 如果用户不存在
                                             if (result == null) {
@@ -109,38 +109,58 @@ exports.login = function (req, res, next) {
                                                     // 校验密码
                                                     if (bcrypt.compareSync(req.body.password, user.password)) {
                                                         // 生成登录令牌
-                                                        const token = jwt.sign({
-                                                            account: req.body.account,
-                                                            password: req.body.password
-                                                        }, process.env.APP_TOKEN_KEY, {
-                                                            expiresIn: '7d',
-                                                        });
-                                                        // 创建令牌记录
-                                                        global.Token.create({
-                                                            token: token,
-                                                            appid: req.body.appid,
-                                                            account: req.body.account,
-                                                            markcode: req.body.markcode
-                                                        });
-                                                        // 返回200成功，包含登录令牌和用户信息
-                                                        return res.status(200).json({
-                                                            code: 200,
-                                                            message: '登录成功',
-                                                            data: [
-                                                                {
+                                                        global.lookupAllGeoInfo(req.clientIp, {
+                                                            watchForUpdates: true
+                                                        }).then(
+                                                            async geo => {
+                                                                const token = jwt.sign({
+                                                                    account: req.body.account,
+                                                                    password: req.body.password
+                                                                }, process.env.APP_TOKEN_KEY, {
+                                                                    expiresIn: '7d',
+                                                                });
+                                                                await global.Token.create({
                                                                     token: token,
-                                                                    userInfo: [{
-                                                                        account: result.account,
-                                                                        username: result.name,
-                                                                        avatar: result.avatar,
-                                                                        register_ip: result.register_ip,
-                                                                        register_province: result.register_province,
-                                                                        register_city: result.register_city,
-                                                                        register_time: result.register_time
-                                                                    }]
-                                                                }
-                                                            ]
-                                                        });
+                                                                    appid: req.body.appid,
+                                                                    account: req.body.account,
+                                                                    markcode: req.body.markcode
+                                                                });
+                                                                await global.LoginLog.create({
+                                                                    user_id: req.body.account,
+                                                                    appid: req.body.appid,
+                                                                    login_time: global.moment().format('YYYY-MM-DD HH:mm:ss'),
+                                                                    login_ip: req.clientIp,
+                                                                    login_address: geo.city.provinceName + geo.city.cityNameZh,
+                                                                    login_device: req.body.markcode,
+                                                                    login_isp: geo.asn.autonomousSystemOrganization,
+                                                                })
+                                                                return res.status(200).json({
+                                                                    code: 200,
+                                                                    message: '登录成功',
+                                                                    data: [
+                                                                        {
+                                                                            token: token,
+                                                                            userInfo: [{
+                                                                                account: result.account,
+                                                                                username: result.name,
+                                                                                avatar: result.avatar,
+                                                                                register_ip: result.register_ip,
+                                                                                register_province: result.register_province,
+                                                                                register_city: result.register_city,
+                                                                                register_time: result.register_time
+                                                                            }]
+                                                                        }
+                                                                    ]
+                                                                });
+                                                            }
+
+                                                        ).catch(error => {
+                                                            return res.status(500).json({
+                                                                code: 500,
+                                                                message: '获取地理位置信息失败',
+                                                                error: error.message
+                                                            });
+                                                        })
                                                     } else {
                                                         // 密码错误，返回401
                                                         return res.status(401).json({

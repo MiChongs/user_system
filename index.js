@@ -89,6 +89,8 @@ async function initDatabase() {
     await globals.Card.sync().then(r => console.debug("Card synced successfully"))
     await globals.Notification.sync().then(r => console.debug("Notification synced successfully"))
     await globals.Log.sync().then(r => console.debug("Log synced successfully"))
+    await globals.RegisterLog.sync().then(r => console.debug("RegisterLog synced successfully"))
+    await globals.LoginLog.sync().then(r => console.debug("LoginLog synced successfully"))
     console.log("数据库初始化完成")
     app.listen(process.env.SERVER_PORT, () => {
         console.log("服务已启动");

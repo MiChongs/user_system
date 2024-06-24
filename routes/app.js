@@ -42,7 +42,12 @@ router.post('/card/generate', [
     body("card_type").not().isEmpty().withMessage("卡密类型是必须的"),
     body("card_award_num").not().isEmpty().withMessage("卡密奖励数量是必须的"),
     body("card_code_expire").not().isEmpty().withMessage("卡密到期时间是必须的"),
+    body("card_memo").not().isEmpty().withMessage("卡密备注是必须的"),
 ], appController.generateCard)
+
+router.post('/card/list', [
+    body("appid").not().isEmpty().withMessage("应用ID是必须的"),
+], appController.cards)
 
 let verifyToken = async function (token) {
     let newToken = token
