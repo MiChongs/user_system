@@ -7,6 +7,9 @@ const { isEmptyStr } = require("../global");
 const axios = require('axios')
 const iconv = require("iconv-lite");
 const path = require('path')
+const { Op } = require("sequelize");
+const { error } = require("console");
+const boom = require('express-boom')
 // 引入配置好的 multerConfig
 // 上传到服务器地址
 const BaseURL = process.env.BASE_URL
@@ -202,9 +205,9 @@ exports.register = async function (req, res, next) {
                                                             code: 400,
                                                             message: '邀请码无效'
                                                         })
-                                                        return
                                                     }
                                                 })
+                                                return
                                             }
                                             global.User.create(userConfig).then((result) => {
                                                 // 用户创建成功，返回200成功码和用户信息
@@ -222,12 +225,14 @@ exports.register = async function (req, res, next) {
                                                     }]
                                                 });
                                             })
+                                            return
                                         }).catch(err => {
                                             res.status(500).json({
                                                 code: 500,
                                                 message: '查询IP所在地区失败',
                                                 error: err.message
                                             })
+                                            return
                                         })
                                     }
                                 }).catch(error => {
@@ -236,7 +241,9 @@ exports.register = async function (req, res, next) {
                                         code: 500,
                                         message: error
                                     })
+                                    return
                                 })
+                                return
                             } else {
                                 // 创建新用户
                                 const options = {
@@ -279,7 +286,7 @@ exports.register = async function (req, res, next) {
                                                 invite_code: req.body.invite_code,
                                                 appid: req.body.appid,
                                             }
-                                        }).then(user => {
+                                        }).then(async user => {
                                             if (user) {
                                                 userConfig.parent_invite_account = user.account
                                                 if (app.invite_award === 'integral') {
@@ -293,38 +300,72 @@ exports.register = async function (req, res, next) {
                                                     }
                                                     userConfig.vip_time += global.moment().add(app.invite_award_num, 'm')
                                                 }
+                                                await global.User.create(userConfig).then(async (result) => {
+                                                    // 用户创建成功，返回200成功码和用户信息
+                                                    await global.Log.create({
+                                                        log_type: 'register',
+                                                        log_content: global.logString('register', req.clientIp, req.body.markcode, global.moment().format('YYYY-MM-DD HH:mm:ss')),
+                                                        log_ip: req.clientIp,
+                                                        log_time: global.moment().format('YYYY-MM-DD HH:mm:ss'),
+                                                        log_user_id: result.account,
+                                                        appid: req.body.appid,
+                                                    })
+                                                    res.status(200).json({
+                                                        code: 200,
+                                                        message: '用户注册成功',
+                                                        result: [{
+                                                            account: result.account,
+                                                            password: result.password,
+                                                            avatar: result.avatar,
+                                                            name: result.username,
+                                                            register_ip: result.register_ip,
+                                                            register_time: result.register_time,
+                                                            vip_time: result.vip_time,
+                                                        }]
+                                                    });
+                                                })
                                                 return
                                             } else {
-                                                res.status(400).json({
+                                                return res.status(400).json({
                                                     code: 400,
                                                     message: '邀请码无效'
                                                 })
-                                                return
                                             }
                                         })
+                                    } else {
+                                        await global.User.create(userConfig).then(async (result) => {
+                                            // 用户创建成功，返回200成功码和用户信息
+                                            await global.Log.create({
+                                                log_type: 'register',
+                                                log_content: global.logString('register', req.clientIp, req.body.markcode, global.moment().format('YYYY-MM-DD HH:mm:ss')),
+                                                log_ip: req.clientIp,
+                                                log_time: global.moment().format('YYYY-MM-DD HH:mm:ss'),
+                                                log_user_id: result.account,
+                                                appid: req.body.appid,
+                                            })
+                                            res.status(200).json({
+                                                code: 200,
+                                                message: '用户注册成功',
+                                                result: [{
+                                                    account: result.account,
+                                                    password: result.password,
+                                                    avatar: result.avatar,
+                                                    name: result.username,
+                                                    register_ip: result.register_ip,
+                                                    register_time: result.register_time,
+                                                    vip_time: result.vip_time,
+                                                }]
+                                            });
+                                            return
+                                        })
                                     }
-                                    global.User.create(userConfig).then((result) => {
-                                        // 用户创建成功，返回200成功码和用户信息
-                                        res.json({
-                                            code: 200,
-                                            message: '用户注册成功',
-                                            result: [{
-                                                account: result.account,
-                                                password: result.password,
-                                                avatar: result.avatar,
-                                                name: result.username,
-                                                register_ip: result.register_ip,
-                                                register_time: result.register_time,
-                                                vip_time: result.vip_time,
-                                            }]
-                                        });
-                                    })
                                 }).catch(err => {
                                     res.status(500).json({
                                         code: 500,
                                         message: '查询IP所在地区失败',
                                         error: err.message
                                     })
+                                    return
                                 })
 
                             }
@@ -357,6 +398,7 @@ exports.register = async function (req, res, next) {
             })
         })
     }
+    return
 }
 
 exports.devices = function (req, res) {
@@ -382,7 +424,7 @@ exports.devices = function (req, res) {
                         appid: req.body.appid
                     }
                 }).then(result => {
-                    if (!Array.isArray(result)) {
+                    if (global.emptinessCheck(result)) {
                         res.status(201).json({
                             code: 201,
                             message: '该账号没有登录设备'
@@ -667,6 +709,139 @@ exports.uploadAvatar = async function (req, res) {
 
         }).catch(error => {
             res.status(500).json({
+                code: 500,
+                message: '查找应用出错',
+                error: error
+            })
+        })
+    }
+}
+
+exports.daily = function (req, res) {
+    const err = validationResult(req)
+    if (!err.isEmpty()) {
+        // 如果存在验证错误，返回400错误并附带错误信息
+        const [{ msg }] = err.errors
+        res.status(400).json({
+            code: 400,
+            msg: msg,
+        })
+    } else {
+        global.App.findOne({
+            where: {
+                id: req.body.appid
+            }
+        }).then(app => {
+            if (app) {
+                global.Token.findOne({
+                    where: {
+                        token: req.body.token,
+                        appid: req.body.appid
+                    }
+                }).then(user => {
+                    if (user instanceof global.Token) {
+                        global.Log.findOne({
+                            where: {
+                                log_time: {
+                                    [Op.notLike]: global.moment(Date.now()).format('YYYY-MM-DD')
+                                },
+                                log_type: 'daily',
+                                log_user_id: user.account,
+                                appid: req.body.appid
+                            }
+                        }).then(async log => {
+                            if (log) {
+                                return res.status(201).json({
+                                    code: 201,
+                                    message: '已经签到过了'
+                                })
+                            } else {
+                                global.Log.create({
+                                    log_user_id: user.account,
+                                    appid: req.body.appid,
+                                    log_type: 'daily',
+                                    log_ip: req.clientIp,
+                                    log_content: global.logString('daily', req.clientIp, user.markcode, global.moment().format('YYYY-MM-DD HH:mm:ss')),
+                                    log_time: global.moment(Date
+                                        .now()
+                                    ).format('YYYY-MM-DD')
+                                }).then(log => {
+                                    global.User.findOne({
+                                        where: {
+                                            account: user.account,
+                                            appid: req.body.appid
+                                        }
+                                    }).then(user => {
+                                        let userConfig = {}
+                                        if (app.daily_award === 'integral') {
+                                            userConfig = {
+                                                integral: user.integral + app.daily_award_num,
+                                            }
+                                        } else {
+                                            userConfig = {
+                                                vip_time: user.vip_time + global.moment().add(app.daily_award_num, 'm'),
+                                            }
+                                        }
+                                        if (user) {
+                                            user.update(userConfig).then(
+                                                user => {
+                                                    return res.status(200).json({
+                                                        code: 200,
+                                                        message: '签到成功',
+                                                        data: {
+                                                            account: user.account,
+                                                            integral: user.integral,
+                                                            vip_time: global.moment(user.vip_time).format('YYYY-MM-DD HH:mm:ss'),
+                                                            daily_time: global.moment(log.log_time).format('YYYY-MM-DD HH:mm:ss')
+                                                        }
+                                                    })
+                                                }
+                                            ).catch(error => {
+                                                return res.status(201).json({
+                                                    code: 201,
+                                                    message: '签到失败',
+                                                    error: error.message
+                                                })
+                                            })
+                                        }
+                                    })
+                                }).catch(error => {
+                                    return res.status(201).json({
+                                        code: 201,
+                                        message: '创建日志失败',
+                                        error: error.message
+                                    })
+                                })
+                                return
+                            }
+                        }).catch(error => {
+                            return res.status(201).json({
+                                code: 201,
+                                message: '无法找到该登录状态',
+                                error: error.message
+                            })
+                        })
+                    } else {
+                        return res.status(201).json({
+                            code: 201,
+                            message: '无法找到该用户'
+                        })
+                    }
+                }).catch(error => {
+                    return res.status(201).json({
+                        code: 201,
+                        message: '查找用户出错',
+                        error: error.message
+                    })
+                })
+            } else {
+                return res.status(201).json({
+                    code: 201,
+                    message: '无法找到该应用'
+                })
+            }
+        }).catch(error => {
+            return res.status(500).json({
                 code: 500,
                 message: '查找应用出错',
                 error: error

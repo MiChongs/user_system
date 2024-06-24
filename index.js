@@ -9,6 +9,7 @@ const { expressjwt } = require("express-jwt");
 const { body, validationResult } = require('express-validator');
 const helmet = require('helmet')
 const fileUpload = require('express-fileupload');
+const boom = require('express-boom')
 const path = require('path');
 var ejs = require('ejs');
 app.use(expressjwt({ algorithms: ['HS256'], secret: process.env.ADMIN_PASSWORD }).unless({
@@ -20,6 +21,7 @@ app.use(expressjwt({ algorithms: ['HS256'], secret: process.env.ADMIN_PASSWORD }
 app.use(helmet())
 const requestIp = require('request-ip');
 app.use(requestIp.mw())
+app.use(boom())
 app.use(function (err, req, res, next) {
     if (err.name === 'UnauthorizedError') {
         res.status(401).json({
@@ -79,24 +81,17 @@ app.use((req, res, next) => {
 })
 
 app.use("/", routes); //新增
-globals.User.sync().then(r => console.debug("User synced successfully.")).catch(e => console.error(e));
-globals.App.sync().then(r => console.debug("App synced successfully.")).catch(e => console.error(e));
-globals.Token.sync().then(r => console.debug("Token synced successfully.")).catch(e => console.error(e));
-globals.Card.sync().then(r => console.debug("Card synced successfully"))
-globals.Notification.sync().then(r => console.debug("Notification synced successfully"))
-app.listen(process.env.SERVER_PORT, () => {
-    console.log("server is running");
-});
-// Typescript:
-// import { Reader } from '@maxmind/geoip2-node';
-
-// 使用示例
-const options = {
-    watchForUpdates: true
-}; // 假设options已定义
-
-try {
-    globals.mysql.authenticate().then(r => console.log("Mysql authenticated!"));
-} catch (e) {
-    console.error(e);
+async function initDatabase() {
+    await globals.mysql.authenticate().then(r => console.log("数据库测试成功"));
+    await globals.User.sync().then(r => console.debug("User synced successfully.")).catch(e => console.error(e));
+    await globals.App.sync().then(r => console.debug("App synced successfully.")).catch(e => console.error(e));
+    await globals.Token.sync().then(r => console.debug("Token synced successfully.")).catch(e => console.error(e));
+    await globals.Card.sync().then(r => console.debug("Card synced successfully"))
+    await globals.Notification.sync().then(r => console.debug("Notification synced successfully"))
+    await globals.Log.sync().then(r => console.debug("Log synced successfully"))
+    console.log("数据库初始化完成")
+    app.listen(process.env.SERVER_PORT, () => {
+        console.log("服务已启动");
+    });
 }
+initDatabase()

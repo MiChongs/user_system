@@ -1,4 +1,4 @@
-const { Sequelize, DataTypes } = require("sequelize");
+const {Sequelize, DataTypes} = require("sequelize");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const bodyParser = require('body-parser')
@@ -9,9 +9,13 @@ const mkdirp = require('mkdirp')
 const moment = require('moment')
 const fs = require("fs");
 const bcrypt = require("bcrypt");
+const Boom = require('@hapi/boom');
 const stringRandom = require('string-random');
-// 获取当前的日期
+const stringFormat = require('string-kit').format;
+const {log} = require("console");
 const nowDate = moment().format('YYYY-MM-DD')
+const dayjs = require('dayjs');
+const emptinessCheck = require('emptiness-check');
 // 封装保存上传文件功能
 const upload = () => {
     const storage = multer.diskStorage({
@@ -27,13 +31,57 @@ const upload = () => {
         }
     })
 
-    return multer({ storage })
+    return multer({storage})
 }
+
 function isEmptyStr(s) {
     return s === undefined || s == null || s === '';
 }
 
 module.exports.isEmptyStr = isEmptyStr;
+
+const Log = mysql.define('Log', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+        comment: '日志ID'
+    },
+    log_type: {
+        type: DataTypes.ENUM,
+        allowNull: false,
+        comment: '日志类型',
+        values: ['login', 'register', 'card_use', 'pay_vip', 'card_generate', 'admin_login', 'logout', 'updateAppConfig', 'createApp', 'logoutDevice', 'updateUser', 'daily']
+    },
+    log_content: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '日志内容'
+    },
+    log_time: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
+        comment: '创建时间'
+    },
+    log_ip: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '日志IP'
+    },
+    log_user_id: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '用户ID'
+    },
+    appid: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: '应用ID'
+    },
+}, {
+    tableName: 'log',
+    timestamps: false
+})
 
 const Card = mysql.define('Card', {
     id: {
@@ -216,7 +264,7 @@ const App = mysql.define('App', {
         defaultValue: 0,
         comment: '登录换绑机器码间隔'
     },
-    loginCheckIp:{
+    loginCheckIp: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true,
@@ -455,6 +503,45 @@ async function lookupAllGeoInfo(ip, options) {
     }
 }
 
+function logString(type, ...format) {
+    let content;
+    if (type === 'login') {
+        content = stringFormat('%s 使用设备码 %s 在 %s 进行登录', format[0], format[1], format[2])
+    } else if (type === 'register') {
+        content = stringFormat('IP 为 %s 使用设备码 %s 在 %s 进行注册', format[0], format[1], format[2])
+    } else if (type === 'logout') {
+        content = '{0} 使用设备码 {1} 在 {2} 进行登出'.stringFormat(format);
+    } else if (type === 'daily') {
+        content = stringFormat('IP 为 %s 使用设备码 %s 在 %s 进行签到', format[0], format[1], format[2])
+    } else if (type === 'logutDevice') {
+        content = '{0} 使用设备码 {1} 在 {2} 进行删除'.stringFormat(format);
+    } else if (type === 'card_use') {
+        content = '{0} 在 {1} 使用了 {2} 卡密'.stringFormat(format);
+    } else if (type === 'pay_vip') {
+        content = '{0} 在 {1} 充值了 {2} 会员'.stringFormat(format);
+    } else if (type === 'card_generate') {
+        content = '{0} 在 {1} 生成了 {2} 个卡密'.stringFormat(format);
+    } else if (type === 'card_delete') {
+        content = '{0} 在 {1} 删除了 {2} 个卡密'.stringFormat(format);
+    } else if (type === 'card_recharge') {
+        content = '{0} 在 {1} 充值了 {2} 个卡密'.stringFormat(format);
+    } else if (type === 'card_recharge_fail') {
+        content = '{0} 在 {1} 充值失败'.stringFormat(format);
+    } else if (type === 'admin_login') {
+        content = '{0} 在 {1} 登录了后台, IP 地址为 {2}'.stringFormat(format);
+    } else if (type === 'createApp') {
+        content = '管理员 {0} 在 {1} 创建了应用 {2}'.stringFormat(format);
+    } else if (type === 'deleteApp') {
+        content = '管理员 {0} 在 {1} 删除了应用 {2}'.stringFormat(format);
+    } else if (type === 'updateAppConfig') {
+        content = '管理员 {0} 在 {1} 更新了应用 {2}'.stringFormat(format);
+    } else if (type === 'updateUser') {
+        content = '管理员 {0} 在 {1} 更新了应用为 {2} 中用户 为 {3} 的信息'.stringFormat(format);
+    }
+
+    return content;
+}
+
 module.exports.User = User;
 module.exports.App = App;
 module.exports.Card = Card;
@@ -471,3 +558,8 @@ module.exports.upload = upload;
 module.exports.fs = fs;
 module.exports.moment = moment;
 module.exports.stringRandom = stringRandom;
+module.exports.Log = Log;
+module.exports.logString = logString;
+module.exports.Boom = Boom;
+module.exports.dayjs = dayjs;
+module.exports.emptinessCheck = emptinessCheck;

@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@hapi/boom": "^10.0.1",
     "@maxmind/geoip2-node": "^5.0.0",
     "axios": "^1.7.2",
     "bcrypt": "^5.1.1",
@@ -17,7 +18,9 @@
     "cors": "^2.8.5",
     "dayjs": "^1.11.11",
     "ejs": "^3.1.10",
+    "emptiness-check": "^1.0.1",
     "express": "^4.19.2",
+    "express-boom": "^3.0.0",
     "express-fileupload": "^1.5.0",
     "express-formidable": "^1.2.0",
     "express-jwt": "^8.4.1",
@@ -35,6 +38,8 @@
     "public-ip": "^6.0.2",
     "request-ip": "^3.3.0",
     "sequelize": "^6.37.3",
+    "string-format": "^2.0.0",
+    "string-kit": "^0.18.3",
     "string-random": "^0.1.3"
   }
 }

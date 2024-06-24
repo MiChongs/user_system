@@ -23,7 +23,11 @@ userRouter.post("/register", normalBodyValidator, userController.register);
 userRouter.post("/devices", [
     body('appid').not().notEmpty().withMessage('隶属于应用id不得为空'), body('account').not().notEmpty().withMessage('账号不得为空')
 ], userController.devices);
+userRouter.post("/daily", [
+    body('appid').not().notEmpty().withMessage('隶属于应用id不得为空'), body('token').not().notEmpty().withMessage('Token 不得为空')
+], userController.daily);
 userRouter.delete('/logout', userBodyValidator, userController.logout)
 userRouter.delete('/logoutDevice', userBodyValidator, userController.deleteDevice)
 userRouter.post('/uploadAvatar', userController.uploadAvatar)
+userRouter.get('/', function (req, res) { res.boom.serverUnavailable('未知服务路由') })
 module.exports = userRouter;
