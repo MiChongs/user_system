@@ -15,6 +15,8 @@ const columnify = require('columnify');
 const { Admin } = require("../models/admin");
 const { getAvatar } = require('../function');
 const { getVip } = require('../function/getVip');
+const {Banner} = require("../models/banner");
+const {hashSync} = require("bcrypt");
 
 /**
  * # 创建应用
@@ -406,6 +408,8 @@ exports.generateCard = async function (req, res) {
         });
     }
 };
+
+
 exports.cards = function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
@@ -512,20 +516,19 @@ exports.updateUser = function (req, res) {
         App.findByPk(req.params.appid || req.body.appid).then(app => {
             if (app) {
                 User.findOne({
-                    account: req.body.account, appid: req.params.appid || req.body.appid,
+                    id: req.body.id, appid: req.params.appid || req.body.appid,
                 }).then(user => {
                     if (user) {
                         user.update({
                             name: req.body.name || user.name,
                             integral: user.integral + req.body.integral || user.integral + 0,
-                            vip_time: dayjs(req.body.vip_time).unix() || user.vip_time,
+                            vip_time: req.body.vip_time || user.vip_time,
                             email: req.body.email || user.email,
                             enabled: req.body.enabled || user.enabled,
-                            disabledEndTime: req.body.disabledEndTime || user.disabledEndTime,
                             reason: req.body.reason || user.reason,
                             role: req.body.role || user.role,
                             markcode: req.body.markcode || user.markcode,
-                            password: bcrypt.hashSync(req.body.password, 10) || user.password,
+                            password: user.password,
                         }).then(user => {
                             if (user) {
                                 res.status(200).json({
@@ -554,3 +557,385 @@ exports.updateUser = function (req, res) {
     }
 }
 
+
+exports.deleteBanner = async (req, res) => {
+    const err = validationResult(req);
+    if (!err.isEmpty()) {
+        // 获取第一个验证错误的信息
+        const [{msg}] = err.errors;
+        // 返回400错误，附带错误信息
+        return res.status(400).json({
+            code: 400, message: msg,
+        });
+    } else {
+        const token = getToken(req.headers.authorization);
+        const {id} = req.body;
+        const admin = await AdminToken.findOne({
+            where: {
+                token: token,
+            }
+        });
+
+        if (admin) {
+            const banner = await Banner.findOne({
+                where: {
+                    id: id,
+                }
+            });
+
+            if (banner) {
+                await banner.destroy();
+
+                res.status(200).json({
+                    code: 200, message: '删除成功',
+                });
+            } else {
+                res.json({
+                    code: 404, message: 'banner不存在',
+                });
+            }
+        } else {
+            res.json({
+                code: 404, message: 'token错误',
+            });
+        }
+    }
+}
+
+exports.bannerList = async (req, res) => {
+    const err = validationResult(req);
+    if (!err.isEmpty()) {
+        // 获取第一个验证错误的信息
+        const [{msg}] = err.errors;
+        // 返回400错误，附带错误信息
+        return res.status(400).json({
+            code: 400, message: msg,
+        });
+    } else {
+        const token = getToken(req.headers.authorization);
+        const {appid} = req.body;
+        const admin = await AdminToken.findOne({
+            where: {
+                token: token,
+            }
+        });
+
+        if (admin) {
+            const banners = await Banner.findAll({
+                where: {
+                    appid: appid,
+                }
+            });
+
+            res.status(200).json({
+                code: 200, message: '获取成功', data: banners,
+            });
+        } else {
+            res.json({
+                code: 404, message: 'token错误',
+            });
+        }
+    }
+}
+
+exports.addBanner = async (req, res) => {
+    const err = validationResult(req);
+    if (!err.isEmpty()) {
+        // 获取第一个验证错误的信息
+        const [{msg}] = err.errors;
+        // 返回400错误，附带错误信息
+        return res.status(400).json({
+            code: 400, message: msg,
+        });
+    } else {
+        const token = getToken(req.headers.authorization);
+        const {appid, title, header, content, type, url} = req.body;
+        const admin = await AdminToken.findOne({
+            where: {
+                token: token,
+            }
+        });
+
+        if (admin) {
+            const banner = await Banner.create({
+                appid: appid, title: title, header: header, content: content, type: type || 'url', url: url,
+            });
+
+            if (banner) {
+                res.status(200).json({
+                    code: 200, message: '创建成功', data: banner,
+                });
+            } else {
+                res.json({
+                    code: 503, message: '数据未就绪',
+                });
+            }
+        } else {
+            res.json({
+                code: 404, message: 'token错误',
+            });
+        }
+    }
+}
+
+exports.updateBanner = async (req, res) => {
+    const err = validationResult(req);
+    if (!err.isEmpty()) {
+        // 获取第一个验证错误的信息
+        const [{msg}] = err.errors;
+        // 返回400错误，附带错误信息
+        return res.status(400).json({
+            code: 400, message: msg,
+        });
+    } else {
+        const token = getToken(req.headers.authorization);
+        const {id, appid, title, header, content, type, url} = req.body;
+        const admin = await AdminToken.findOne({
+            where: {
+                token: token,
+            }
+        });
+
+        if (admin) {
+            const banner = await Banner.findOne({
+                where: {
+                    id: id,
+                }
+            });
+
+            if (banner) {
+                await banner.update({
+                    appid: appid, title: title, header: header, content: content, type: type || banner.type, url: url,
+                });
+
+                res.status(200).json({
+                    code: 200, message: '更新成功', data: banner,
+                });
+            } else {
+                res.json({
+                    code: 404, message: 'banner不存在',
+                });
+            }
+        } else {
+            res.json({
+                code: 404, message: 'token错误',
+            });
+        }
+    }
+}
+
+exports.addUser = async (req, res) => {
+    const err = validationResult(req);
+    if (!err.isEmpty()) {
+        // 获取第一个验证错误的信息
+        const [{msg}] = err.errors;
+        // 返回400错误，附带错误信息
+        return res.status(400).json({
+            code: 400, message: msg,
+        });
+    } else {
+        const token = getToken(req.headers.authorization);
+        const {appid, username, password, email, phone, avatar, status} = req.body;
+        const admin = await AdminToken.findOne({
+            where: {
+                token: token,
+            }
+        });
+
+        if (admin) {
+            const user = await User.create({
+                appid: appid, name: username, password: hashSync(password, 10),
+            });
+
+            if (user) {
+                res.status(200).json({
+                    code: 200, message: '创建成功', data: user,
+                });
+            } else {
+                res.json({
+                    code: 503, message: '数据未就绪',
+                });
+            }
+        } else {
+            res.json({
+                code: 404, message: 'token错误',
+            });
+        }
+    }
+}
+
+exports.userInfo = async (req, res) => {
+    const err = validationResult(req);
+    if (!err.isEmpty()) {
+        // 获取第一个验证错误的信息
+        const [{msg}] = err.errors;
+        // 返回400错误，附带错误信息
+        return res.status(400).json({
+            code: 400, message: msg,
+        });
+    } else {
+        const token = getToken(req.headers.authorization);
+        const {appid, id} = req.body;
+        const admin = await AdminToken.findOne({
+            where: {
+                token: token,
+            }
+        });
+
+        if (admin) {
+            const user = await User.findOne({
+                where: {
+                    appid: appid,
+                    id: id,
+                }
+            });
+
+            if (user) {
+                res.status(200).json({
+                    code: 200, message: '获取成功', data: user,
+                });
+            } else {
+                res.json({
+                    code: 404, message: '用户不存在',
+                });
+            }
+        } else {
+            res.json({
+                code: 404, message: 'token错误',
+            });
+        }
+    }
+}
+
+exports.deleteCard = async (req, res) => {
+    const err = validationResult(req);
+    if (!err.isEmpty()) {
+        // 获取第一个验证错误的信息
+        const [{msg}] = err.errors;
+        // 返回400错误，附带错误信息
+        return res.status(400).json({
+            code: 400, message: msg,
+        });
+    } else {
+        const token = getToken(req.headers.authorization);
+        const {appid, id} = req.body;
+        const admin = await AdminToken.findOne({
+            where: {
+                token: token,
+            }
+        });
+
+        if (admin) {
+            const card = await Card.findOne({
+                where: {
+                    appid: appid,
+                    id: id,
+                }
+            });
+
+            if (card) {
+                await card.destroy();
+
+                res.status(200).json({
+                    code: 200, message: '删除成功',
+                });
+            } else {
+                res.json({
+                    code: 404, message: '卡密不存在',
+                });
+            }
+        } else {
+            res.json({
+                code: 404, message: 'token错误',
+            });
+        }
+    }
+}
+
+exports.deleteUser = async (req, res) => {
+    const err = validationResult(req);
+    if (!err.isEmpty()) {
+        // 获取第一个验证错误的信息
+        const [{msg}] = err.errors;
+        // 返回400错误，附带错误信息
+        return res.status(400).json({
+            code: 400, message: msg,
+        });
+    } else {
+        const token = getToken(req.headers.authorization);
+        const {appid, id} = req.body;
+        const admin = await AdminToken.findOne({
+            where: {
+                token: token,
+            }
+        });
+
+        if (admin) {
+            const user = await User.findOne({
+                where: {
+                    appid: appid,
+                    id: id,
+                }
+            });
+
+            if (user) {
+                await user.destroy();
+
+                res.status(200).json({
+                    code: 200, message: '删除成功',
+                });
+            } else {
+                res.json({
+                    code: 404, message: '用户不存在',
+                });
+            }
+        } else {
+            res.json({
+                code: 404, message: 'token错误',
+            });
+        }
+    }
+}
+
+exports.cardInfo = async (req, res) => {
+    const err = validationResult(req);
+    if (!err.isEmpty()) {
+        // 获取第一个验证错误的信息
+        const [{msg}] = err.errors;
+        // 返回400错误，附带错误信息
+        return res.status(400).json({
+            code: 400, message: msg,
+        });
+    } else {
+        const token = getToken(req.headers.authorization);
+        const {appid, id} = req.body;
+        const admin = await AdminToken.findOne({
+            where: {
+                token: token,
+            }
+        });
+
+        if (admin) {
+            const card = await Card.findOne({
+                where: {
+                    appid: appid,
+                    id: id,
+                }
+            });
+
+            if (card) {
+                res.status(200).json({
+                    code: 200, message: '获取成功', data: card,
+                });
+            } else {
+                res.json({
+                    code: 404, message: '卡密不存在',
+                });
+            }
+        } else {
+            res.json({
+                code: 404, message: 'token错误',
+            });
+        }
+    }
+}

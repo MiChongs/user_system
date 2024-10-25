@@ -3,13 +3,6 @@ const {DataTypes} = require("sequelize");
 const {Admin} = require("./admin");
 
 
-
-
-
-
-
-
-
 const App = mysql.define('App', {
     id: {
         type: DataTypes.INTEGER, primaryKey: true, autoIncrement: false, comment: '应用ID'
@@ -17,6 +10,8 @@ const App = mysql.define('App', {
         type: DataTypes.STRING, allowNull: false, comment: '应用名称'
     }, key: {
         type: DataTypes.STRING, allowNull: false, comment: '应用密钥'
+    }, encrypt: {
+        type: DataTypes.BOOLEAN, allowNull: true, comment: '加密启用状态', defaultValue: false
     }, status: {
         type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, comment: '应用状态'
     }, disabledReason: {
@@ -68,7 +63,7 @@ const App = mysql.define('App', {
     }, smtpForm: {
         type: DataTypes.STRING, allowNull: true, defaultValue: '', comment: 'SMTP发件人'
     }, bind_admin_account: {
-        type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, comment: '绑定管理员账号',references: {
+        type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, comment: '绑定管理员账号', references: {
             model: Admin,
             key: 'id'
         }

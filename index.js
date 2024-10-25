@@ -1,10 +1,10 @@
 process.env.TZ = 'Asia/Shanghai'
-require('./function/dayjs')
+const dayjs = require('./function/dayjs')
 const express = require("express");
 const routes = require("./routes/index"); //新增
 const app = express();
 const sequelize = require('sequelize')
-const {Sequelize, DataTypes} = require("sequelize");
+const {Sequelize, DataTypes, Op, QueryTypes} = require("sequelize");
 const cors = require('cors');
 const {body, validationResult} = require('express-validator');
 const helmet = require('helmet')
@@ -13,7 +13,10 @@ const boom = require('express-boom')
 const path = require('path');
 const ejs = require('ejs');
 const {promisify} = require('util');
-app.use(helmet())
+const schedule = require('node-schedule');
+app.use(helmet({
+    crossOriginResourcePolicy: false
+}))
 const requestIp = require('request-ip');
 app.use(requestIp.mw())
 app.use(boom())
@@ -54,7 +57,7 @@ app.use(cors());
 app.use(expressLogger)
 app.engine('html', ejs.__express);
 app.set('view engine', 'html');
-app.set('trust proxy', 'loopback');
+app.set('trust proxy', '1');
 app.use(json());
 app.use('/avatars', express.static(path.join(__dirname, 'public/avatars')))
 app.use(fileUpload());
@@ -99,7 +102,7 @@ async function initDatabase() {
             })
 
             await User.belongsTo(App, {
-                foreignKey: 'appid',
+                foreignKey: 'appid', targetKey: 'id', onDelete: 'CASCADE', onUpdate: 'CASCADE'
             })
 
 
@@ -130,7 +133,7 @@ async function initDatabase() {
 
             // 一个应用对应一个管理员
             await App.belongsTo(Admin, {
-                foreignKey: 'bind_admin_account', targetKey: 'id'
+                foreignKey: 'bind_admin_account', targetKey: 'id', onDelete: 'CASCADE', onUpdate: 'CASCADE'
             })
 
             await App.hasMany(Banner, {
@@ -313,16 +316,10 @@ async function initDatabase() {
                 onDelete: 'CASCADE', onUpdate: 'CASCADE', foreignKey: 'userId', sourceKey: 'id'
             })
             await RoleToken.belongsTo(User, {
-                onDelete: 'CASCADE',
-                onUpdate: 'CASCADE',
-                foreignKey: 'userId',
-                targetKey: 'id'
+                onDelete: 'CASCADE', onUpdate: 'CASCADE', foreignKey: 'userId', targetKey: 'id'
             })
             await RoleToken.belongsTo(App, {
-                onDelete: 'CASCADE',
-                onUpdate: 'CASCADE',
-                foreignKey: 'appid',
-                targetKey: 'id'
+                onDelete: 'CASCADE', onUpdate: 'CASCADE', foreignKey: 'appid', targetKey: 'id'
             })
             console.log("数据库同步成功");
         } else {
@@ -330,13 +327,53 @@ async function initDatabase() {
         }
     }).catch(e => console.error("数据库模型同步失败", e));
 
-    // await globals.Token.sync({
-    //     force: true, alter: false
-    // }).then(r => console.log("数据库模型同步成功")).catch(e => console.error("数据库模型同步失败", e));
     console.log("数据库初始化完成")
     app.listen(process.env.SERVER_PORT, () => {
         console.log(`服务已启动 ${process.env.BASE_SERVER_URL}:${process.env.SERVER_PORT}`);
     });
 }
 
+function getRandomNum(Min, Max) {
+    const Range = Max - Min + 1;
+    const Rand = Math.random();
+    return Min + Math.floor(Rand * Range);
+}
+
+
+function initFreezerUser() {
+    schedule.scheduleJob({
+        minute: [1, 10,20,30,40,50,59]
+    }, async function () {
+        const startOfDay = dayjs().startOf('day').format("YYYY-MM-DD HH:mm:ss");
+        const endOfDay = dayjs().endOf('day').format("YYYY-MM-DD HH:mm:ss");
+        const sql = `SELECT userId,COUNT(dailies.userId) AS count FROM dailies WHERE (date BETWEEN '${startOfDay}' AND '${endOfDay}') GROUP BY userId,appid HAVING count >= 2`
+        const query = mysql.query(sql, {
+            type: QueryTypes.SELECT
+        })
+        if (!query) {
+            console.log("查询数据库失败")
+        }
+        let count = 0;
+        let users = [];
+        for (const num of (await query)) {
+            const user = await User.findByPk(num.userId)
+            if (!dayjs(user.disabledEndTime).isAfter(dayjs())) {
+                const randomDays = getRandomNum(30, 365)
+                user.disabledEndTime = dayjs().add(randomDays, 'days').toDate();
+                user.reason = "频繁签到，被冻结" + randomDays + "天。"
+                await user.save()
+                count++;
+                users[count] = user
+            }
+        }
+        if (count === 0) {
+            return console.log("暂无重复签到用户，执行日期:", dayjs().format("YYYY年MM月DD日 HH时mm分ss秒"))
+        } else {
+            return console.log("自动冻结用户完成，执行日期:", dayjs().format("YYYY年MM月DD日 HH时mm分ss秒"), '所有用户:\n', users)
+        }
+    });
+}
+
 initDatabase()
+
+initFreezerUser()

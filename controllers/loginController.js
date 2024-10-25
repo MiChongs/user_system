@@ -154,6 +154,7 @@ async function handleLoginSuccess(user, req, res) {
 
     if (tokenWithMarkcode) {
         if (tokenWithMarkcode.account !== user.id) {
+
             return res.json({
                 code: 404, message: '设备已被其他用户绑定'
             });

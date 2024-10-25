@@ -5,6 +5,7 @@ const {App} = require("../models/app");
 const bcrypt = require('bcrypt');
 const {RoleToken} = require("../models/user/roleToken");
 const {Op} = require("sequelize");
+const dayjs = require("./dayjs");
 
 /**
  * # 根据动态条件查找用户
@@ -67,6 +68,12 @@ async function findUserInfo(req, res, callback) {
             });
         }
 
+        if (!user.enabled || dayjs(user.disabledEndTime).isAfter(dayjs())) {
+            return res.json({
+                code: 401, message: '用户已被禁用'
+            });
+        }
+
         // 调用回调函数并传递 token 和 user
         callback(token, user, app);
     } catch (e) {
@@ -78,12 +85,6 @@ async function findUserInfo(req, res, callback) {
 
 async function findUserByPassword(req, res, callback) {
     try {
-
-        if (!req.headers.authorization) {
-            return res.json({
-                code: 201, message: '用户未授权'
-            });
-        }
 
         if (!req.body.appid) {
             return res.json({

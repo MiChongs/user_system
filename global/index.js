@@ -48,7 +48,7 @@ const redisClient = redis.createClient({
 
 exports.adminPath = ['/login', '/resetPassword', '/sendMail', '/register', '/logout', /^\/public\/.*/, /^\/avatars\/.*/, /^\/static\/.*/, /^\/user_disk\/.*/, /^\/user_video\/.*/]
 
-exports.userPath = ['/login', '/devices-by-password', '/captcha', '/banner', '/logout-device-by-password', '/register', '/login_qq', '/sendMail', '/resetPassword', '/logout', '/logout', /^\/public\/.*/, /^\/avatars\/.*/, /^\/static\/.*/, /^\/user_disk\/.*/, /^\/user_video\/.*/]
+exports.userPath = ['/ban-list','/login','/splash','/notice', '/devices-by-password', '/captcha', '/banner', '/logout-device-by-password', '/register', '/login_qq', '/sendMail', '/resetPassword', '/logout', '/logout', /^\/public\/.*/, /^\/avatars\/.*/, /^\/static\/.*/, /^\/user_disk\/.*/, /^\/user_video\/.*/]
 
 exports.adminAbsolutePath = ['/api/admin/login', '/api/admin/resetPassword', '/api/admin/sendMail', '/api/admin/register', '/api/admin/logout', /^\/public\/.*/, /^\/avatars\/.*/, /^\/static\/.*/, /^\/user_disk\/.*/, /^\/user_video\/.*/]
 

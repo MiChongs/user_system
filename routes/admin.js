@@ -18,4 +18,7 @@ router.post("/logout", adminController.logout)
 
 router.get("/:code", adminController.resetPassword);
 
+router.post('/info',adminController.myInfo)
+
+
 module.exports = router;

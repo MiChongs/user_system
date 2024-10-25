@@ -1,44 +1,44 @@
-require('../function/dayjs')
 const global = require("../global/index")
-const { validationResult } = require("express-validator");
+const {validationResult} = require("express-validator");
 const globals = require("../global");
 const bcrypt = require("bcrypt");
 const res = require("express/lib/response");
-const { isEmptyStr, getToken, redisClient, stringRandom } = require("../global");
+const {isEmptyStr, getToken, redisClient, stringRandom} = require("../global");
 const axios = require('axios')
 const iconv = require("iconv-lite");
 const path = require('path')
-const { Op, where, or } = require("sequelize");
+const {Op, where, or} = require("sequelize");
 const fs = require('fs')
-const { error } = require("console");
-const { User } = require("../models/user");
-const { Log } = require("../models/log");
-const { RegisterLog } = require("../models/registerLog");
-const { Token } = require("../models/token");
-const { App } = require("../models/app");
-const { Card } = require("../models/card");
+const {error} = require("console");
+const {User} = require("../models/user");
+const {Log} = require("../models/log");
+const {RegisterLog} = require("../models/registerLog");
+const {Token} = require("../models/token");
+const {App} = require("../models/app");
+const {Card} = require("../models/card");
 const svgCaptcha = require('svg-captcha');
 const dayjs = require("../function/dayjs");
-const { getVip } = require("../function/getVip");
-const { Daily } = require("../models/daily");
+const {getVip} = require("../function/getVip");
+const {Daily} = require("../models/daily");
 const http = require('http');
 const socketIO = require('socket.io')
-const { getNextCustomId } = require("../function/getNextCustomId");
-const { CustomIdLog } = require("../models/customIdLog");
-const { findUserInfo, findUserByPassword } = require("../function/findUser");
-const { isVip } = require("../function/isVip");
-const { token } = require("morgan");
-const { Banner } = require("../models/banner");
-const exp = require('constants');
-const { VersionChannel } = require('../models/versionChannel');
-const { versionChannelUser } = require('../models/versionChannelUser');
-const { Version } = require("../models/version");
-const { Site } = require("../models/sites");
+const {getNextCustomId} = require("../function/getNextCustomId");
+const {CustomIdLog} = require("../models/customIdLog");
+const {findUserInfo, findUserByPassword} = require("../function/findUser");
+const {isVip} = require("../function/isVip");
+const {token} = require("morgan");
+const {Banner} = require("../models/banner");
+const {VersionChannel} = require('../models/versionChannel');
+const {versionChannelUser} = require('../models/versionChannelUser');
+const {Version} = require("../models/version");
+const {Site} = require("../models/sites");
 const crypto = require('crypto');
-const { Goods } = require('../models/goods');
-const { Order } = require('../models/goods/order');
-const { SiteAudit } = require("../models/user/siteAudits");
-const { SiteAward } = require("../models/user/siteAward");
+const {Goods} = require('../models/goods');
+const {Order} = require('../models/goods/order');
+const {SiteAudit} = require("../models/user/siteAudits");
+const {SiteAward} = require("../models/user/siteAward");
+const {Notice} = require("../models/notice");
+const {Splash} = require("../models/splash");
 // 引入配置好的 multerConfig
 // 上传到服务器地址
 const BaseURL = process.env.BASE_URL
@@ -53,6 +53,13 @@ const extractIPv4 = (ip) => {
         return ip;
     }
 };
+
+const randomNumber = (min, max) => {
+    const randomBuffer = new Uint32Array(1);
+    window.crypto.getRandomValues(randomBuffer);
+    const number = randomBuffer[0] / (0xffffffff + 1);
+    return Math.floor(number * (max - min) + min);
+}
 
 /**
  * 异步处理列表请求的路由中间件。
@@ -75,7 +82,7 @@ exports.list = async function (err, req, res, next) {
     if (!req.headers.authorization) {
         // 如果未授权，返回未授权信息及客户端IP对应的地域信息
         res.json({
-            code: '201', message: '用户未授权', region: [{ result: result, ip: global.getClientIp(req) }]
+            code: '201', message: '用户未授权', region: [{result: result, ip: global.getClientIp(req)}]
         })
         return
     }
@@ -100,37 +107,36 @@ exports.list = async function (err, req, res, next) {
  * 使用async函数处理异步操作
  * @param {Object} req 请求对象，包含注册信息
  * @param {Object} res 响应对象，用于返回注册结果
- * @param {Function} next 中间件函数，用于处理下一个中间件或路由
  */
 exports.register = async function (req, res) {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        const [{ msg }] = errors.errors;
-        return res.json({ code: 400, message: msg });
+        const [{msg}] = errors.errors;
+        return res.json({code: 400, message: msg});
     }
 
     const appId = req.params.appid || req.body.appid;
     const app = await App.findByPk(appId);
     if (!app) {
-        return res.json({ code: 400, message: '无法找到该应用' });
+        return res.json({code: 400, message: '无法找到该应用'});
     }
 
     if (!app.registerStatus) {
         const reason = isEmptyStr(app.disabledRegisterReason) ? '无原因' : app.disabledRegisterReason;
-        return res.json({ code: 400, message: '应用已暂停注册', data: { reason } });
+        return res.json({code: 400, message: '应用已暂停注册', data: {reason}});
     }
 
-    const { account, username, password, invite_code, markcode } = req.body;
+    const {account, username, password, invite_code, markcode} = req.body;
 
-    const userExists = await User.count({ where: { account } });
+    const userExists = await User.count({where: {account}});
     if (userExists >= 1) {
-        return res.json({ code: 401, message: '用户已存在' });
+        return res.json({code: 401, message: '用户已存在'});
     }
 
     if (app.registerCheckIp) {
-        const ipExists = await User.count({ where: { register_ip: req.clientIp } });
+        const ipExists = await User.count({where: {register_ip: req.clientIp}});
         if (ipExists >= 1) {
-            return res.json({ code: 401, message: 'IP已注册过账号' });
+            return res.json({code: 401, message: 'IP已注册过账号'});
         }
     }
 
@@ -168,9 +174,9 @@ exports.register = async function (req, res) {
     }
 
     if (invite_code) {
-        const inviter = await User.findOne({ where: { invite_code, appid: appId } });
+        const inviter = await User.findOne({where: {invite_code, appid: appId}});
         if (!inviter) {
-            return res.json({ code: 400, message: '邀请码无效' });
+            return res.json({code: 400, message: '邀请码无效'});
         }
 
         userConfig.parent_invite_account = inviter.account;
@@ -193,7 +199,7 @@ exports.register = async function (req, res) {
             UserId: newUser.id
         });
         const customId = await getNextCustomId(appId, newUser.id);
-        await newUser.update({ customId: customId });
+        await newUser.update({customId: customId});
         await RegisterLog.create({
             user_id: newUser.account,
             register_time: dayjs().toDate(),
@@ -216,14 +222,14 @@ exports.register = async function (req, res) {
             }
         });
     } catch (err) {
-        res.json({ code: 500, message: '用户注册失败', error: err.message });
+        res.json({code: 500, message: '用户注册失败', error: err.message});
     }
 };
 
 exports.devices = function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 400, msg: msg,
         })
@@ -246,7 +252,7 @@ exports.devices = function (req, res) {
                 where: whereCondition
             }).then(result => {
                 return res.status(200).json({
-                    code: 200, message: '已找到所有设备', data: result
+                    code: "200", message: '已找到所有设备', data: result
                 })
             })
         })
@@ -256,7 +262,7 @@ exports.devices = function (req, res) {
 exports.deleteDevice = function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 400, msg: msg,
         })
@@ -309,7 +315,7 @@ exports.deleteDevice = function (req, res) {
 exports.logout = async function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 404, msg: msg,
         })
@@ -372,7 +378,7 @@ exports.uploadAvatar = async function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 400, msg: msg,
         })
@@ -472,113 +478,79 @@ exports.daily = async function (req, res) {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors;
+        const [{msg}] = err.errors;
         return res.json({
             code: 400, message: msg,
         });
     }
+    findUserInfo(req, res, async (token, user, app) => {
+        try {
 
-    const token = getToken(req.headers.authorization);
+            const startOfDay = dayjs().startOf('day').toDate();
+            const endOfDay = dayjs().endOf('day').toDate();
 
-    try {
-        const app = await App.findOne({ where: { id: req.body.appid } });
-        if (!app) {
-            return res.json({
-                code: 404, message: '无法找到该应用',
+            const existingDaily = await Daily.findOne({
+                where: {
+                    userId: user.id, date: {
+                        [Op.between]: [startOfDay, endOfDay],
+                    }, appid: req.body.appid,
+                },
             });
-        }
 
-        const tokens = await Token.findOne({ where: { token: token, appid: req.body.appid } });
-        if (!tokens) {
-            return res.json({
-                code: 404, message: '无效的令牌',
+            if (existingDaily) {
+                return res.status(200).json({
+                    code: 200, message: '已经签到过了',
+                });
+            }
+
+            // 创建签到记录
+            const daily = await Daily.create({
+                userId: user.id, date: dayjs().toDate(), integral: app.daily_award_num, appid: req.body.appid,
             });
-        }
 
-        const whereCondition = {
-            appid: req.body.appid, // appid 是必需的
-        };
-        if (tokens.account) {
-            whereCondition.id = tokens.account;
-        }
-        if (tokens.open_qq) {
-            whereCondition.open_qq = tokens.open_qq;
-        }
-        if (tokens.open_wechat) {
-            whereCondition.open_wechat = tokens.open_wechat;
-        }
+            // 更新用户记录
+            let userConfig = {};
+            if (app.daily_award === 'integral') {
+                userConfig.integral = user.integral + app.daily_award_num;
+            } else {
+                userConfig.vip_time = dayjs(user.vip_time).add(app.daily_award_num, 'm').toDate();
+            }
 
-        const user = await User.findOne({ where: whereCondition });
-        if (!user) {
-            return res.json({
-                code: 404, message: '无法找到该用户',
+            await user.update(userConfig);
+
+            // 创建日志记录
+            const log = await Log.create({
+                log_user_id: user.account,
+                appid: req.body.appid,
+                log_type: 'daily',
+                log_ip: req.clientIp,
+                open_qq: user.open_qq,
+                open_wechat: user.open_wechat,
+                log_content: global.logString('daily', req.clientIp, user.markcode, dayjs().format('YYYY-MM-DD HH:mm:ss')),
+                UserId: user.id,
             });
-        }
 
-        const startOfDay = dayjs().startOf('day').toDate();
-        const endOfDay = dayjs().endOf('day').toDate();
-
-        const existingDaily = await Daily.findOne({
-            where: {
-                userId: user.id, date: {
-                    [Op.between]: [startOfDay, endOfDay],
-                }, appid: req.body.appid,
-            },
-        });
-
-        if (existingDaily) {
             return res.status(200).json({
-                code: 200, message: '已经签到过了',
+                code: 200, message: '签到成功', data: {
+                    account: user.account,
+                    integral: user.integral,
+                    vip_time: dayjs(user.vip_time).format('YYYY-MM-DD HH:mm:ss'),
+                    daily_time: dayjs(daily.date).format('YYYY-MM-DD HH:mm:ss'),
+                },
+            });
+        } catch (error) {
+            console.error('Error processing daily check-in:', error);
+            return res.json({
+                code: 500, message: '内部服务器错误', error: error.message,
             });
         }
-
-        // 创建签到记录
-        const daily = await Daily.create({
-            userId: user.id, date: dayjs().toDate(), integral: app.daily_award_num, appid: req.body.appid,
-        });
-
-        // 更新用户记录
-        let userConfig = {};
-        if (app.daily_award === 'integral') {
-            userConfig.integral = user.integral + app.daily_award_num;
-        } else {
-            userConfig.vip_time = dayjs(user.vip_time).add(app.daily_award_num, 'm').toDate();
-        }
-
-        await user.update(userConfig);
-
-        // 创建日志记录
-        const log = await Log.create({
-            log_user_id: user.account,
-            appid: req.body.appid,
-            log_type: 'daily',
-            log_ip: req.clientIp,
-            open_qq: user.open_qq,
-            open_wechat: user.open_wechat,
-            log_content: global.logString('daily', req.clientIp, user.markcode, dayjs().format('YYYY-MM-DD HH:mm:ss')),
-            UserId: user.id,
-        });
-
-        return res.status(200).json({
-            code: 200, message: '签到成功', data: {
-                account: user.account,
-                integral: user.integral,
-                vip_time: dayjs(user.vip_time).format('YYYY-MM-DD HH:mm:ss'),
-                daily_time: dayjs(daily.date).format('YYYY-MM-DD HH:mm:ss'),
-            },
-        });
-    } catch (error) {
-        console.error('Error processing daily check-in:', error);
-        return res.json({
-            code: 500, message: '内部服务器错误', error: error.message,
-        });
-    }
+    })
 };
 
 exports.useCard = async function (req, res) {
     const err = validationResult(req);
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors;
+        const [{msg}] = err.errors;
         return res.json({
             code: 400, message: msg,
         });
@@ -639,7 +611,7 @@ exports.useCard = async function (req, res) {
         if (tokenRecord.open_qq) whereCondition.open_qq = tokenRecord.open_qq;
         if (tokenRecord.open_wechat) whereCondition.open_wechat = tokenRecord.open_wechat;
 
-        const user = await User.findOne({ where: whereCondition });
+        const user = await User.findOne({where: whereCondition});
 
         if (!user) {
             return res.json({
@@ -683,22 +655,18 @@ exports.useCard = async function (req, res) {
                     code: 400, message: '该用户已是永久会员',
                 });
             }
-
-            if (user.vip_time === 0 || !user.vip_time || dayjs().isAfter(dayjs.unix(user.vip_time))) {
-                user.vip_time = dayjs.unix();
+            if (user.vip_time === 0 || !user.vip_time || dayjs().isAfter(dayjs(user.vip_time))) {
+                user.vip_time = dayjs().unix();
             }
 
-            if (card.card_award_num >= 99999) {
+            if (card.card_award_num >= 9999) {
                 user.vip_time = 999999999;
             } else {
                 // 检查 vip_time 是 Unix 时间戳还是 Date 对象
                 const currentVipTime = dayjs.unix(user.vip_time);
 
                 // 添加天数到 VIP 时间
-                const newVipTime = currentVipTime.add(card.card_award_num, 'day').unix();
-
-
-                user.vip_time = newVipTime;
+                user.vip_time = currentVipTime.add(card.card_award_num, 'days').unix();
             }
 
             await user.save();
@@ -736,7 +704,7 @@ exports.sendMail = function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 400, msg: msg,
         })
@@ -764,7 +732,7 @@ exports.sendMail = function (req, res) {
                                                 // 已存在此邮箱数据
                                                 if (result) {
                                                     await global.redisClient.disconnect();
-                                                    return res.status(409).json({ msg: '请不要重复发起请求，15分钟后可以再次发起。' });
+                                                    return res.status(409).json({msg: '请不要重复发起请求，15分钟后可以再次发起。'});
                                                 }
                                                 // 创建nodemailer transporter
                                                 const transporter = global.nodemailer.createTransport({
@@ -791,11 +759,11 @@ exports.sendMail = function (req, res) {
                                                     try {
                                                         await transporter.sendMail(mailOptions);
                                                         console.log('验证电子邮件已成功发送。');
-                                                        return res.status(200).json({ msg: '验证电子邮件已成功发送。' });
+                                                        return res.status(200).json({msg: '验证电子邮件已成功发送。'});
                                                     } catch (error) {
                                                         console.error('发送电子邮件时出错：', error);
                                                         await global.redisClient.disconnect();
-                                                        return res.json({ msg: '发送电子邮件时出错：' + error });
+                                                        return res.json({msg: '发送电子邮件时出错：' + error});
                                                     }
                                                 };
 
@@ -850,7 +818,7 @@ exports.forgotPassword = function (req, res) {
     const err = validationResult(req)
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 400, msg: msg,
         })
@@ -951,7 +919,7 @@ exports.verifyVip = async (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 400, msg: msg,
         })
@@ -974,7 +942,7 @@ exports.my = async (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 404, message: msg,
         })
@@ -1018,6 +986,23 @@ exports.my = async (req, res) => {
                     },
                 });
 
+                const existingDailies = await Daily.findAndCountAll({
+                    where: {
+                        userId: user.id, date: {
+                            [Op.between]: [startOfDay, endOfDay],
+                        }, appid: req.body.appid,
+                    },
+                });
+
+                if (existingDailies.count >= 2) {
+                    const randomDays = randomNumber(30, 365)
+                    user.disabledEndTime = dayjs().add(randomDays, 'day').toDate();
+                    await user.save()
+                    return res.json({
+                        code: 401, message: '账号已被封禁',
+                    });
+                }
+
                 let isDaily = false;
 
                 if (existingDaily) {
@@ -1059,17 +1044,17 @@ exports.dailyRank = async function (req, res) {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors;
+        const [{msg}] = err.errors;
         return res.json({
             code: 400, message: msg,
         });
     }
 
-    const { appid } = req.body;
+    const {appid} = req.body;
     const token = getToken(req.headers.authorization);
 
     try {
-        const tokenRecord = await Token.findOne({ where: { token: token, appid: appid } });
+        const tokenRecord = await Token.findOne({where: {token: token, appid: appid}});
         if (!tokenRecord) {
             return res.json({
                 code: 404, message: '无法找到该登录状态'
@@ -1117,12 +1102,12 @@ exports.integralRank = (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 404, msg: msg,
         })
     } else {
-        const { appid } = req.body
+        const {appid} = req.body
         const token = getToken(req.headers.authorization)
         Token.findOne({
             where: {
@@ -1138,7 +1123,7 @@ exports.integralRank = (req, res) => {
                 const pageSize = parseInt(req.body.pageSize) || 50; // 每页记录数
                 const offset = (page - 1) * pageSize; // 计算偏移量
                 try {
-                    const { count, rows } = await User.findAndCountAll({
+                    const {count, rows} = await User.findAndCountAll({
                         limit: pageSize,
                         offset: offset,
                         order: [['integral', 'DESC'],],
@@ -1155,7 +1140,7 @@ exports.integralRank = (req, res) => {
                     });
                 } catch (error) {
                     console.error('Error fetching logs:', error);
-                    return res.json({ code: 404, message: 'An error occurred while fetching logs.' });
+                    return res.json({code: 404, message: 'An error occurred while fetching logs.'});
                 }
             }
         })
@@ -1166,12 +1151,12 @@ exports.getCaptcha = async (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 404, msg: msg,
         })
     } else {
-        const { appid } = req.body
+        const {appid} = req.body
         try {
             const app = await App.findByPk(appid)
             if (!app) {
@@ -1204,13 +1189,13 @@ exports.updateCustomId = async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors;
+        const [{msg}] = err.errors;
         return res.json({
             code: 404, message: msg,
         });
     }
 
-    const { appid, customId } = req.body;
+    const {appid, customId} = req.body;
     const token = getToken(req.headers.authorization);
 
     try {
@@ -1272,7 +1257,7 @@ exports.updateCustomId = async (req, res) => {
             userStatus = 'normal';
         }
 
-        const customIdChangeCount = await CustomIdLog.findAndCountAll({ where: { userId: user.id, appid, userStatus } });
+        const customIdChangeCount = await CustomIdLog.findAndCountAll({where: {userId: user.id, appid, userStatus}});
 
         let effectiveCustomIdLimit;
 
@@ -1316,12 +1301,12 @@ exports.searchUser = async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors;
+        const [{msg}] = err.errors;
         return res.json({
             code: 404, msg: msg,
         });
     } else {
-        const { appid, keyword, page = 1, pageSize = 100 } = req.body;
+        const {appid, keyword, page = 1, pageSize = 100} = req.body;
         const token = getToken(req.headers.authorization);
         try {
             const app = await App.findByPk(appid);
@@ -1347,7 +1332,7 @@ exports.searchUser = async (req, res) => {
             // 获取总记录数
             const totalRecords = await User.count({
                 where: {
-                    appid: appid, [Op.or]: [{ name: { [Op.like]: `%${keyword}%` } }, { customId: { [Op.like]: `%{keyword}%` } }]
+                    appid: appid, [Op.or]: [{name: {[Op.like]: `%${keyword}%`}}, {customId: {[Op.like]: `%{keyword}%`}}]
                 }
             });
 
@@ -1357,7 +1342,7 @@ exports.searchUser = async (req, res) => {
             const users = await User.findAndCountAll({
                 where: {
                     appid: appid,
-                    [Op.or]: [{ name: { [Op.like]: `%${keyword}%` } }, { customId: { [Op.like]: `%${keyword}%` } }]
+                    [Op.or]: [{name: {[Op.like]: `%${keyword}%`}}, {customId: {[Op.like]: `%${keyword}%`}}]
                 }, attributes: ['customId', 'name', 'avatar'], limit: pageSize, offset: offset
             });
 
@@ -1388,7 +1373,7 @@ exports.setUpdateUser = async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors;
+        const [{msg}] = err.errors;
         return res.json({
             code: 404, message: msg,
         });
@@ -1415,7 +1400,7 @@ exports.banner = async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         return res.json({
             code: 404, message: msg
         })
@@ -1424,7 +1409,7 @@ exports.banner = async (req, res) => {
         const app = await App.findByPk(req.query.appid)
         if (!app) {
             return res.json({
-                code: 404, message: "无法找到该应用"
+                code: "404", message: "无法找到该应用"
             })
         }
         const banners = await Banner.findAndCountAll({
@@ -1434,15 +1419,15 @@ exports.banner = async (req, res) => {
         })
         if (banners.count <= 0) {
             return res.json({
-                code: 404, message: "该应用暂无广告"
+                code: "404", message: "该应用暂无广告"
             })
         }
         return res.json({
-            code: 200, message: "成功获取广告列表", data: banners.rows
+            code: "200", message: "成功获取广告列表", data: banners.rows
         })
     } catch (e) {
         return res.json({
-            code: 404, message: "服务器内部错误"
+            code: "404", message: "服务器内部错误"
         })
     }
 }
@@ -1451,7 +1436,7 @@ exports.analyzer = async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         return res.json({
             code: 200, message: msg
         })
@@ -1482,7 +1467,7 @@ exports.analyzer = async (req, res) => {
         }
 
         return res.json({
-            code: 200, message: "获取数据成功", data: response.data.data
+            code: "200", message: "获取数据成功", data: response.data.data
         })
 
     })
@@ -1492,7 +1477,7 @@ exports.createSite = async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         return res.json({
             code: 404, message: msg
         })
@@ -1504,7 +1489,7 @@ exports.createSite = async (req, res) => {
             where: {
                 appid: req.body.appid,
                 userId: user.id,
-                [Op.or]: [{ name: { [Op.like]: `%${req.body.name}%` } }, { url: { [Op.like]: `%${req.body.url}%` } }]
+                [Op.or]: [{name: {[Op.like]: `%${req.body.name}%`}}, {url: {[Op.like]: `%${req.body.url}%`}}]
             }
         })
 
@@ -1539,7 +1524,7 @@ exports.siteList = async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         return res.json({
             code: 404, message: msg
         })
@@ -1570,7 +1555,7 @@ exports.getSite = async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         return res.json({
             code: 404, message: msg
         })
@@ -1602,7 +1587,7 @@ exports.getSite = async (req, res) => {
 exports.searchSite = async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors;
+        const [{msg}] = err.errors;
         return res.json({
             code: 400, message: msg
         });
@@ -1617,7 +1602,7 @@ exports.searchSite = async (req, res) => {
             where: {
                 appid: req.body.appid,
                 status: 'normal',
-                [Op.or]: [{ name: { [Op.like]: `%${req.body.keyword}%` } }, { url: { [Op.like]: `%${req.body.keyword}%` } }, { description: { [Op.like]: `%${req.body.keyword}%` } }]
+                [Op.or]: [{name: {[Op.like]: `%${req.body.keyword}%`}}, {url: {[Op.like]: `%${req.body.keyword}%`}}, {description: {[Op.like]: `%${req.body.keyword}%`}}]
             }, attributes: ['header', 'name', 'url', 'type', 'description', 'id'], include: [{
                 model: User, attributes: ['name', 'avatar']
             }], limit: pageSize, offset: offset
@@ -1647,7 +1632,7 @@ exports.deleteSite = async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         return res.json({
             code: 404, message: msg
         })
@@ -1684,7 +1669,7 @@ exports.updateSite = async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         return res.json({
             code: 404, message: msg
         })
@@ -1726,7 +1711,7 @@ exports.getSiteById = async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         return res.json({
             code: 404, message: msg
         })
@@ -1757,14 +1742,14 @@ exports.checkVersion = async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         return res.json({
             code: 404, message: msg
         })
     }
     try {
         const token = getToken(req.headers.authorization)
-        const { versionCode } = req.query
+        const {versionCode} = req.query
         const app = await App.findByPk(req.query.appid)
 
         if (!app) {
@@ -1800,7 +1785,7 @@ exports.checkVersion = async (req, res) => {
                         where: {
                             bindAppid: req.query.appid,
                             bindBand: app.defaultBand || 1,
-                            [Op.or]: [{ version: { [Op.gt]: versionCode } }]
+                            [Op.or]: [{version: {[Op.gt]: versionCode}}]
                         }
                     })
 
@@ -1819,7 +1804,7 @@ exports.checkVersion = async (req, res) => {
                     where: {
                         bindAppid: req.query.appid,
                         bindBand: channelUser.rows[0].channelId || 0,
-                        [Op.or]: [{ version: { [Op.gt]: versionCode } }]
+                        [Op.or]: [{version: {[Op.gt]: versionCode}}]
                     }
                 })
 
@@ -1841,7 +1826,7 @@ exports.checkVersion = async (req, res) => {
                 where: {
                     bindAppid: req.query.appid,
                     bindBand: app.defaultBand || 1,
-                    [Op.or]: [{ version: { [Op.gt]: versionCode } }]
+                    [Op.or]: [{version: {[Op.gt]: versionCode}}]
                 }
             })
 
@@ -1867,7 +1852,7 @@ exports.devicesByPassword = async (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 404, msg: msg,
         })
@@ -1896,7 +1881,7 @@ exports.logoutDeviceByPassword = async (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 404, msg: msg,
         })
@@ -1940,7 +1925,7 @@ exports.modifyName = async (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
         // 如果存在验证错误，返回400错误并附带错误信息
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 404, message: msg,
         })
@@ -1959,7 +1944,7 @@ exports.modifyName = async (req, res) => {
 exports.modifyPassword = async (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 404, msg: msg,
         })
@@ -1983,7 +1968,7 @@ exports.modifyPassword = async (req, res) => {
 exports.getGoods = async (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 404, msg: msg,
         })
@@ -2011,7 +1996,7 @@ exports.getGoods = async (req, res) => {
 exports.order = async (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         res.json({
             code: 404, msg: msg,
         })
@@ -2088,7 +2073,7 @@ exports.order = async (req, res) => {
 exports.mySites = async (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         return res.json({
             code: 404, message: msg
         })
@@ -2117,7 +2102,7 @@ exports.mySites = async (req, res) => {
 exports.myOrders = async (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         return res.json({
             code: 404, message: msg
         })
@@ -2147,7 +2132,7 @@ exports.myOrders = async (req, res) => {
 exports.bonusIntegral = async (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         return res.json({
             code: 404, message: msg
         })
@@ -2196,7 +2181,7 @@ exports.bonusIntegral = async (req, res) => {
 exports.accountInfoByCustomId = async (req, res) => {
     const err = validationResult(req)
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors
+        const [{msg}] = err.errors
         return res.json({
             code: 404, message: msg
         })
@@ -2219,5 +2204,104 @@ exports.accountInfoByCustomId = async (req, res) => {
         return res.json({
             code: 200, message: "获取成功", data: targetUser
         })
+    })
+}
+
+exports.banList = async (req, res) => {
+    const err = validationResult(req)
+    if (!err.isEmpty()) {
+        const [{msg}] = err.errors
+        return res.json({
+            code: 404, message: msg
+        })
+    }
+    const bans = await User.findAndCountAll({
+        where: {
+            appid: req.body.appid || req.query.appid,
+            [Op.or]: [{enabled: false}, {disabledEndTime: {[Op.gt]: dayjs().toDate()}}]
+        }, attributes: ['name', 'avatar', 'customId', 'reason', 'disabledEndTime']
+    })
+
+    if (bans.count <= 0) {
+        return res.json({
+            code: 404, message: "暂无封禁用户"
+        })
+    }
+
+    return res.json({
+        code: 200, message: "获取成功", data: bans.rows
+    })
+}
+
+exports.notice = async (req, res) => {
+    const err = validationResult(req)
+    if (!err.isEmpty()) {
+        const [{msg}] = err.errors
+        return res.json({
+            code: 404, message: msg
+        })
+    }
+    const app = await App.findByPk(req.body.appid || req.query.appid)
+    if (!app) {
+        res.json({
+            code: 201,
+            message: "获取失败"
+        })
+    }
+
+    const notices = await Notice.findAll({
+        where: {
+            appid: app.id
+        }
+    })
+
+    if (notices.length <= 0 || !notices) {
+        return res.json({
+            code: 201,
+            message: "暂无数据"
+        })
+    }
+
+    res.status(200).json({
+        code: 200,
+        message: "获取成功",
+        data: notices
+    })
+}
+
+
+exports.splash = async (req, res) => {
+    const err = validationResult(req)
+    if (!err.isEmpty()) {
+        const [{msg}] = err.errors
+        return res.json({
+            code: 404, message: msg
+        })
+    }
+    const app = await App.findByPk(req.body.appid || req.query.appid)
+    if (!app) {
+        res.json({
+            code: 201,
+            message: "获取失败"
+        })
+    }
+
+    const notices = await Splash.findAll({
+        where: {
+            appid: app.id
+        }
+    })
+
+    if (notices.length <= 0 || !notices) {
+        return res.json({
+            code: 201,
+            message: "暂无数据"
+        })
+    }
+
+    res.status(200).json({
+        code: 200,
+        message: "获取成功",
+        data: notices
     })
 }

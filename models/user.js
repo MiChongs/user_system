@@ -48,7 +48,7 @@ const User = mysql.define('User', {
     }, reason: {
         type: DataTypes.STRING, comment: '禁用原因', defaultValue: '无'
     }, role: {
-        type: DataTypes.ENUM, defaultValue: 'user', values: ['admin', 'user', 'tester','auditor'], comment: '用户权限组'
+        type: DataTypes.ENUM, defaultValue: 'user', values: ['admin', 'user', 'tester', 'auditor'], comment: '用户权限组'
     }, markcode: {
         type: DataTypes.STRING, allowNull: false, comment: 'Markcode (设备ID)'
     }, parent_invite_account: {
@@ -65,7 +65,9 @@ const User = mysql.define('User', {
         type: DataTypes.INTEGER, allowNull: false, comment: '用户可自定义ID次数', defaultValue: 1
     }, customId: {
         type: DataTypes.STRING, allowNull: true, comment: '用户自定义ID', defaultValue: ''
-    },
+    }, twoFactorSecret: {
+        type: DataTypes.TEXT, allowNull: true, comment: '用户二次验证密钥'
+    }
 }, {
     // 这是其他模型参数
     freezeTableName: true, timestamps: false,

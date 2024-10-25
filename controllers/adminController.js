@@ -15,6 +15,8 @@ const dayjs = require("dayjs");
 const {AdminToken} = require("../models/adminToken");
 const {token} = require('morgan');
 const {Banner} = require('../models/banner');
+const {App} = require("../models/app");
+const {User} = require("../models/user");
 
 
 /**
@@ -55,7 +57,7 @@ exports.accountInfo = (req, res) => {
     }
 }
 
-exports.myInfo = (req, res) => {
+exports.myInfo = async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) {
         // 获取第一个验证错误的信息
@@ -65,15 +67,46 @@ exports.myInfo = (req, res) => {
             code: 404, message: msg,
         });
     } else {
-        Admin.findOne({
-            where: {
-                account: req.body.account,
+        try {
+            const token = await AdminToken.findOne({
+                where: {
+                    token: getToken(req.headers.authorization)
+                }
+            })
+
+            if (!token) {
+                return res.json({
+                    code: 404,
+                    message: "Token 错误"
+                })
             }
-        }).then(admin => {
-            if (admin) {
-                res.boom.badRequest('账号已存在')
+
+            const admin = await Admin.findOne({
+                where: {
+                    account: token.account
+                }
+            })
+
+            if (!admin) {
+                return res.json({
+                    code: 404,
+                    message: "账号不存在"
+                })
             }
-        })
+
+            return res.json({
+                code: 200,
+                message: "获取账号信息成功",
+                data: admin
+            })
+
+
+        } catch (e) {
+            return res.json({
+                code: 404,
+                message: "服务器错误"
+            })
+        }
     }
 }
 
@@ -211,8 +244,8 @@ exports.login = async (req, res) => {
     const err = validationResult(req);
 
     if (!err.isEmpty()) {
-        const [{ msg }] = err.errors;
-        return res.status(400).json({
+        const [{msg}] = err.errors;
+        return res.json({
             code: 404,
             message: msg,
         });
@@ -251,14 +284,14 @@ exports.login = async (req, res) => {
                 token: token,
             });
         } else {
-            return res.status(404).json({
+            return res.json({
                 code: 404,
                 message: '账号或密码错误',
             });
         }
     } catch (error) {
         console.error(error);
-        return res.status(500).json({
+        return res.json({
             code: 500,
             message: '服务器错误',
         });

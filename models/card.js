@@ -1,6 +1,7 @@
 const {mysql} = require("../database");
 const {DataTypes} = require("sequelize");
 const {App} = require("./app");
+const dayjs = require("../function/dayjs")
 
 const Card = mysql.define('Card', {
     id: {
@@ -20,11 +21,17 @@ const Card = mysql.define('Card', {
     }, card_memo: {
         type: DataTypes.STRING, allowNull: false, comment: '卡密备注'
     }, card_code_expire: {
-        type: DataTypes.DATE, comment: '卡密过期时间', allowNull: false,
+        type: DataTypes.DATE, comment: '卡密过期时间', allowNull: false, get() {
+        return dayjs(this.getDataValue('card_code_expire')).format('YYYY-MM-DD HH:mm:ss');
+    }
     }, card_time: {
-        type: DataTypes.DATE, defaultValue: DataTypes.NOW, comment: '创建时间'
+        type: DataTypes.DATE, defaultValue: DataTypes.NOW, comment: '创建时间', get() {
+            return dayjs(this.getDataValue('card_time')).format('YYYY-MM-DD HH:mm:ss');
+        }
     }, used_time: {
-        type: DataTypes.DATE, comment: '使用时间'
+        type: DataTypes.DATE, comment: '使用时间', get() {
+            return dayjs(this.getDataValue('used_time')).format('YYYY-MM-DD HH:mm:ss');
+        }
     }, appid: {
         type: DataTypes.INTEGER, allowNull: false, comment: 'App ID', references: {
             model: App, key: 'id'
