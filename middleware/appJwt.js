@@ -95,18 +95,20 @@ const appJwt = async function (req, res, next) {
             });
         }
 
-        const isYourApp = await App.findByPk(req.body.appid || req.query.appid)
+        if (req.body.appid || req.query.appid) {
+            const isYourApp = await App.findByPk(req.body.appid || req.query.appid)
 
-        if (!isYourApp) {
-            return res.json({
-                code: 404, message: "无法找到该应用"
-            });
-        }
+            if (!isYourApp) {
+                return res.json({
+                    code: 404, message: "无法找到该应用"
+                });
+            }
 
-        if (isYourApp.bind_admin_account !== admin.id) {
-            return res.json({
-                code: 404, message: "该应用不属于您"
-            });
+            if (isYourApp.bind_admin_account !== admin.id) {
+                return res.json({
+                    code: 404, message: "该应用不属于您"
+                });
+            }
         }
 
         return next();
