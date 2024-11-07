@@ -373,7 +373,10 @@ function initFreezerUser() {
         }
     });
 }
-
+//初始化数据库
 initDatabase()
 
+/**
+ * # 初始化冻结用户
+ */
 initFreezerUser()
