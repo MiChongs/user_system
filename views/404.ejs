@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - 页面未找到</title>
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@5.x/css/materialdesignicons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            background-color: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+        }
+
+        #app {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .matrix-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .main-content {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .content {
+            width: 100%;
+            max-width: 800px;
+            padding: 40px 20px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            border: 1px solid rgba(0, 255, 0, 0.2);
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.1);
+            animation: fadeIn 0.5s ease-out;
+            margin: 0 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .error-code {
+            font-size: 150px;
+            font-weight: bold;
+            color: #0f0;
+            text-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+            margin: 0;
+            line-height: 1;
+            animation: glow 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 10px #0f0, 0 0 20px #0f0, 0 0 30px #0f0;
+            }
+            to {
+                text-shadow: 0 0 20px #0f0, 0 0 30px #0f0, 0 0 40px #0f0;
+            }
+        }
+
+        .error-title {
+            font-size: 32px;
+            color: #0f0;
+            margin: 20px 0;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
+            font-weight: 300;
+        }
+
+        .error-message {
+            font-size: 18px;
+            color: #0f0;
+            margin: 20px 0;
+            line-height: 1.6;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.8);
+            opacity: 0.9;
+        }
+
+        .weather-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 3;
+            color: #0f0;
+            font-size: 14px;
+            text-shadow: 0 0 3px #0f0;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: slideIn 0.5s ease-out;
+            min-width: 200px;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .weather-container p {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+        }
+
+        .weather-container p:hover {
+            opacity: 1;
+        }
+
+        .weather-icon {
+            width: 20px;
+            height: 20px;
+            vertical-align: middle;
+            margin-right: 10px;
+            filter: invert(100%) sepia(100%) saturate(100%) hue-rotate(90deg);
+        }
+
+        .device-info {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 3;
+            color: #0f0;
+            font-size: 14px;
+            text-shadow: 0 0 3px #0f0;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: slideInRight 0.5s ease-out;
+            min-width: 200px;
+            max-width: 300px;
+        }
+
+        .device-info p {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+            word-break: break-all;
+        }
+
+        .device-info p:hover {
+            opacity: 1;
+        }
+
+        .device-info i {
+            margin-right: 10px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .error-code {
+                font-size: 120px;
+            }
+
+            .error-title {
+                font-size: 24px;
+            }
+
+            .error-message {
+                font-size: 16px;
+            }
+
+            .weather-container {
+                top: 10px;
+                left: 10px;
+                padding: 10px 15px;
+                font-size: 12px;
+            }
+        }
+
+        .v-application {
+            background: transparent !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <v-app>
+            <div class="matrix-background">
+                <canvas id="matrix"></canvas>
+            </div>
+            <div class="main-content">
+                <div class="weather-container">
+                    <p id="location">
+                        <i class="weather-icon">📍</i>
+                        <span>获取位置中...</span>
+                    </p>
+                    <p id="weather">
+                        <i class="weather-icon">🌤️</i>
+                        <span>获取天气中...</span>
+                    </p>
+                    <p id="temperature">
+                        <i class="weather-icon">🌡️</i>
+                        <span></span>
+                    </p>
+                </div>
+                <div class="content">
+                    <div class="error-code">404</div>
+                    <h1 class="error-title">页面未找到</h1>
+                    <p class="error-message">
+                        抱歉，您访问的页面不存在或已被移除。<br>
+                        请检查URL是否正确。<br>
+                        您当前的操作系统信息将被记录。
+                    </p>
+                </div>
+                <div class="device-info">
+                    <p>
+                        <i>🔍</i>
+                        <span id="visitor-id">获取访客ID中...</span>
+                    </p>
+                    <p>
+                        <i>🌐</i>
+                        <span id="ip-address">获取IP地址中...</span>
+                    </p>
+                    <p>
+                        <i>💻</i>
+                        <span id="os-info">获取系统信息中...</span>
+                    </p>
+                    <p>
+                        <i>🌍</i>
+                        <span id="browser-info">获取浏览器信息中...</span>
+                    </p>
+                </div>
+            </div>
+        </v-app>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+    <script src="/js/vue-init.js"></script>
+    <script src="/js/404.js"></script>
+</body>
+</html>

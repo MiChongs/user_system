@@ -1,0 +1,33 @@
+{
+    "brands": {
+        "xiaomi": {
+            "name": "Xiaomi",
+            "models": {
+                "mi 10": {
+                    "marketing_name": "Mi 10",
+                    "type": "smartphone",
+                    "release_date": "2020-02"
+                },
+                "redmi note 10": {
+                    "marketing_name": "Redmi Note 10",
+                    "type": "smartphone",
+                    "release_date": "2021-03"
+                }
+                // 添加更多小米型号...
+            }
+        },
+        "huawei": {
+            "name": "Huawei",
+            "models": {
+                "p40": {
+                    "marketing_name": "P40",
+                    "type": "smartphone",
+                    "release_date": "2020-03"
+                }
+                // 添加更多华为型号...
+            }
+        }
+        // 添加更多品牌...
+    },
+    "last_updated": "2024-01-15"
+} 

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <style>
+        :root {
+            --md-sys-color-primary: #006495;
+            --md-sys-color-on-surface: #1c1b1f;
+            --md-sys-color-surface-variant: #e7e0ec;
+            --md-sys-color-outline: #79747e;
+            --md-sys-color-surface-container: #f3edf7;
+            --md-sys-color-warning-container: #fef7e6;
+            --spacing-xs: 8px;
+            --spacing-sm: 12px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.5;
+            color: var(--md-sys-color-on-surface);
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .wrapper {
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            padding: var(--spacing-md);
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 680px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 16px;
+            padding: clamp(16px, 4vw, var(--spacing-xl));
+            box-shadow: 0px 1px 3px rgba(0,0,0,0.1), 
+                       0px 2px 1px rgba(0,0,0,0.06), 
+                       0px 1px 1px rgba(0,0,0,0.08);
+            box-sizing: border-box;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: clamp(var(--spacing-lg), 3vw, var(--spacing-xl));
+            padding-bottom: var(--spacing-md);
+            border-bottom: 1px solid var(--md-sys-color-surface-variant);
+        }
+
+        .app-name {
+            font-size: clamp(20px, 5vw, 24px);
+            font-weight: 500;
+            color: var(--md-sys-color-primary);
+            margin: 0;
+            letter-spacing: 0.15px;
+            word-wrap: break-word;
+        }
+
+        .content {
+            padding: clamp(var(--spacing-md), 3vw, var(--spacing-lg));
+            margin-bottom: var(--spacing-lg);
+            font-size: 16px;
+            letter-spacing: 0.25px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .footer {
+            text-align: center;
+            color: var(--md-sys-color-outline);
+            font-size: 12px;
+            margin-top: var(--spacing-xl);
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid var(--md-sys-color-surface-variant);
+            letter-spacing: 0.4px;
+        }
+
+        .highlight {
+            color: var(--md-sys-color-primary);
+            font-weight: 500;
+            word-break: break-word;
+        }
+
+        .changes {
+            background-color: var(--md-sys-color-surface-container);
+            padding: clamp(var(--spacing-md), 3vw, var(--spacing-lg));
+            border-radius: 12px;
+            margin: var(--spacing-md) 0;
+        }
+
+        .change-item {
+            margin: var(--spacing-sm) 0;
+            display: grid;
+            gap: var(--spacing-xs);
+        }
+
+        .change-item p {
+            margin: var(--spacing-xs) 0;
+            line-height: 1.6;
+        }
+
+        .old-value {
+            color: var(--md-sys-color-outline);
+            text-decoration: line-through;
+            font-size: 14px;
+            word-break: break-word;
+        }
+
+        .new-value {
+            color: var(--md-sys-color-primary);
+            font-weight: 500;
+            font-size: 14px;
+            word-break: break-word;
+        }
+
+        .warning {
+            background-color: var(--md-sys-color-warning-container);
+            border-left: 4px solid #f6c000;
+            padding: clamp(var(--spacing-md), 3vw, var(--spacing-lg));
+            border-radius: 4px;
+            margin: var(--spacing-md) 0;
+        }
+
+        .warning p {
+            margin: var(--spacing-xs) 0;
+        }
+
+        .warning ul {
+            margin: var(--spacing-sm) 0;
+            padding-left: 20px;
+        }
+
+        .warning li {
+            margin-bottom: var(--spacing-xs);
+            line-height: 1.6;
+        }
+
+        @media screen and (max-width: 480px) {
+            .wrapper {
+                padding: var(--spacing-xs);
+            }
+            
+            .container {
+                padding: var(--spacing-md);
+            }
+
+            .content {
+                padding: var(--spacing-sm);
+            }
+
+            .change-item {
+                gap: var(--spacing-xs);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="container">
+            <div class="header">
+                <h1 class="app-name"><%= senderName %></h1>
+            </div>
+            
+            <div class="content">
+                <p>尊敬的用户：</p>
+                <%- content %>
+            </div>
+
+            <div class="footer">
+                <p>此邮件由系统自动发送，请勿直接回复</p>
+                <p>&copy; <%= new Date().getFullYear() %> <%= senderName %>. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

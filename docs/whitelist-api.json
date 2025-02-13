@@ -1,0 +1,490 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "用户系统白名单接口文档",
+    "description": "用户系统白名单管理相关接口",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "本地开发环境"
+    }
+  ],
+  "tags": [
+    {
+      "name": "白名单管理",
+      "description": "白名单的增删改查操作"
+    }
+  ],
+  "paths": {
+    "/api/whitelist": {
+      "post": {
+        "tags": ["白名单管理"],
+        "summary": "添加白名单",
+        "description": "添加新的白名单记录",
+        "operationId": "addToWhitelist",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhitelistCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "添加成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhitelistResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数错误或记录已存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["白名单管理"],
+        "summary": "查询白名单列表",
+        "description": "分页查询白名单列表，支持按应用ID、类型和标签筛选",
+        "operationId": "getWhitelist",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appid",
+            "in": "query",
+            "description": "应用ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "白名单类型",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["user", "ip", "device", "email", "phone"]
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "标签",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "页码",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "每页数量",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhitelistListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/whitelist/{id}": {
+      "put": {
+        "tags": ["白名单管理"],
+        "summary": "更新白名单",
+        "description": "更新指定ID的白名单记录",
+        "operationId": "updateWhitelist",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "白名单ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhitelistUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhitelistResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "记录不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["白名单管理"],
+        "summary": "删除白名单",
+        "description": "删除指定ID的白名单记录",
+        "operationId": "removeFromWhitelist",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "白名单ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "记录不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/whitelist/check": {
+      "post": {
+        "tags": ["白名单管理"],
+        "summary": "检查白名单状态",
+        "description": "检查指定用户是否在白名单中",
+        "operationId": "checkWhitelist",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhitelistCheck"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "检查成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhitelistCheckResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "WhitelistCreate": {
+        "type": "object",
+        "required": ["appid", "value", "type"],
+        "properties": {
+          "appid": {
+            "type": "string",
+            "description": "应用ID"
+          },
+          "value": {
+            "type": "string",
+            "description": "白名单值"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["user", "ip", "device", "email", "phone"],
+            "description": "白名单类型"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "标签列表"
+          },
+          "description": {
+            "type": "string",
+            "description": "描述"
+          },
+          "expireAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "过期时间"
+          }
+        }
+      },
+      "WhitelistUpdate": {
+        "type": "object",
+        "properties": {
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "标签列表"
+          },
+          "description": {
+            "type": "string",
+            "description": "描述"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "是否启用"
+          },
+          "expireAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "过期时间"
+          }
+        }
+      },
+      "WhitelistCheck": {
+        "type": "object",
+        "required": ["appid", "tag"],
+        "properties": {
+          "appid": {
+            "type": "string",
+            "description": "应用ID"
+          },
+          "tag": {
+            "type": "string",
+            "description": "功能标签"
+          }
+        }
+      },
+      "WhitelistResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "example": 200
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "appid": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "description": {
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "expireAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "WhitelistListResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "example": 200
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer"
+              },
+              "list": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WhitelistResponse/properties/data"
+                }
+              },
+              "page": {
+                "type": "integer"
+              },
+              "pageSize": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "WhitelistCheckResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "example": 200
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "inWhitelist": {
+                "type": "boolean",
+                "description": "是否在白名单中"
+              }
+            }
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "example": 200
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "example": 400
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

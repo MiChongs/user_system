@@ -1,0 +1,30 @@
+<%
+const content = `
+<div class="email-content" style="padding: 20px;">
+    <h2 style="color: #333; margin-bottom: 20px;">验证码</h2>
+    
+    <p style="color: #666; font-size: 16px; margin-bottom: 15px;">
+        您好，您正在进行邮箱验证，验证码为：
+    </p>
+    
+    <div class="verification-code" style="
+        background-color: #f5f5f5;
+        padding: 15px;
+        font-size: 24px;
+        font-weight: bold;
+        text-align: center;
+        letter-spacing: 5px;
+        margin: 20px 0;
+        border-radius: 5px;
+        color: #333;">
+        <%= code %>
+    </div>
+    
+    <p style="color: #666; font-size: 14px; margin-top: 15px;">
+        验证码有效期为5分钟，请尽快完成验证。<br>
+        如果这不是您的操作，请忽略此邮件。
+    </p>
+</div>
+`;
+%>
+<%- include('base.ejs', { title: '验证码', content, senderName }) %>

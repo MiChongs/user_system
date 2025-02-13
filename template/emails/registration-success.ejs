@@ -1,0 +1,48 @@
+<%
+const content = `
+<div class="email-content" style="padding: 20px;">
+    <h2 style="color: #333; margin-bottom: 20px;">注册成功</h2>
+    
+    <p style="color: #666; font-size: 16px; margin-bottom: 15px;">
+        尊敬的 <%= nickname %>，恭喜您成功注册成为管理员！以下是您的账号信息：
+    </p>
+    
+    <div class="info-box" style="
+        background-color: #f5f5f5;
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 5px;">
+        <p style="margin: 10px 0; color: #333;">
+            <strong>账号：</strong><%= account %>
+        </p>
+        <p style="margin: 10px 0; color: #333;">
+            <strong>昵称：</strong><%= nickname %>
+        </p>
+    </div>
+    
+    <div class="tips" style="margin-top: 30px;">
+        <h3 style="color: #333; font-size: 18px; margin-bottom: 15px;">
+            安全提示
+        </h3>
+        <ul style="color: #666; font-size: 14px; line-height: 1.6; padding-left: 20px;">
+            <li>请妥善保管您的账号信息</li>
+            <li>建议定期更改密码</li>
+            <li>不要将账号信息透露给他人</li>
+            <li>如发现异常登录，请立即修改密码</li>
+        </ul>
+    </div>
+    
+    <div class="footer-note" style="
+        margin-top: 30px;
+        padding: 15px;
+        background-color: #e8f5e9;
+        border-left: 4px solid #4caf50;
+        color: #1b5e20;">
+        <p style="margin: 0; font-size: 14px;">
+            如果您没有进行此操作，请立即联系管理员。
+        </p>
+    </div>
+</div>
+`;
+%>
+<%- include('base.ejs', { title: '注册成功', content }) %>

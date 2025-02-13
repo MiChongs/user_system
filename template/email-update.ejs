@@ -1,0 +1,9 @@
+<%- include('emails/base', { content: `
+<div style="padding: 20px;">
+    <h2>邮箱变更通知</h2>
+    <p>您的账号邮箱已被管理员更新。</p>
+    <p>原邮箱：<%= oldEmail %></p>
+    <p>新邮箱：<%= newEmail %></p>
+    <p>如果这不是您本人的操作，请立即联系管理员。</p>
+</div>
+` }) %>
