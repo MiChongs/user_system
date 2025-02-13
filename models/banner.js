@@ -18,8 +18,13 @@ const Banner = mysql.define("Banner", {
         type: DataTypes.ENUM,
         allowNull: true,
         defaultValue: 'url',
-        values: ["url", "qq_group", "qq_person"],
+        values: ["url", "qq_group", "qq_person","intent","video"],
         comment: "广告点击类型"
+    }, position: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        comment: "广告位顺序"
     }, appid: {
         type: DataTypes.INTEGER, comment: "绑定应用ID", allowNull: false,references: {
             model: App,

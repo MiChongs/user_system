@@ -23,7 +23,18 @@ async function findUserInfo(req, res, callback) {
             });
         }
 
-        const app = await App.findByPk(req.body.appid || req.query.appid);
+        const appId = req.body.appid || req.query.appid;
+        const tokenValue = getToken(req.headers.authorization);
+
+        // Combine App and Token queries to reduce database calls
+        const [app, token] = await Promise.all([
+            App.findByPk(appId),
+            Token.findOne({
+                where: {
+                    token: tokenValue, appid: appId,
+                }
+            })
+        ]);
 
         if (!app) {
             return res.json({
@@ -31,22 +42,15 @@ async function findUserInfo(req, res, callback) {
             });
         }
 
-        // 查找 Token
-        const token = await Token.findOne({
-            where: {
-                token: getToken(req.headers.authorization), appid: req.body.appid || req.query.appid,
-            }
-        });
-
         if (!token) {
             return res.json({
                 code: 201, message: '无法找到该登录状态'
             });
         }
 
-        // 设置查询条件
+        // Set query condition
         const whereCondition = {
-            appid: token.appid, // appid 是必需的
+            appid: token.appid, // appid is required
         };
 
         if (token.account) {
@@ -59,8 +63,8 @@ async function findUserInfo(req, res, callback) {
             whereCondition.open_wechat = token.open_wechat;
         }
 
-        // 查找 User
-        const user = await User.findOne({where: whereCondition});
+        // Find User
+        const user = await User.findOne({ where: whereCondition });
 
         if (!user) {
             return res.json({
@@ -70,11 +74,11 @@ async function findUserInfo(req, res, callback) {
 
         if (!user.enabled || dayjs(user.disabledEndTime).isAfter(dayjs())) {
             return res.json({
-                code: 401, message: '用户已被禁用'
+                code: 401, message: '用户已被禁用,验证失败'
             });
         }
 
-        // 调用回调函数并传递 token 和 user
+        // Call the callback function with token, user, and app
         callback(token, user, app);
     } catch (e) {
         return res.json({

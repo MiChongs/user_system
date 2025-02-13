@@ -1,29 +1,20 @@
 const {jwt, redisClient, getToken, userPath} = require("../global");
+const {Token} = require("../models/token");
+const dayjs = require("../function/dayjs");
+const RedisService = require("../function/redisService");
+const {TimeoutError} = require("sequelize");
 
 redisClient.connect().catch(err => {
     console.error("redisClient connect error", err);
 });
 
 const verifyTokenUser = async function (token) {
-    let newToken = token;
-    if (newToken.indexOf('Bearer') >= 0) {
-        newToken = newToken.replace('Bearer ', '');
-    }
     try {
-        const decoded = await new Promise((resolve, reject) => {
-            jwt.verify(newToken, process.env.APP_TOKEN_KEY, (err, decoded) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(decoded);
-                }
-            });
-        });
-
-        console.log("verify decoded", decoded);
+        const decoded = await jwt.verify(token, process.env.APP_TOKEN_KEY);
+        console.log("验证通过", decoded);
         return true;
     } catch (err) {
-        console.log("verify error", err);
+        console.log("验证失败", err);
         return false;
     }
 };
@@ -35,21 +26,17 @@ const userJwt = async function (req, res, next) {
         return next();
     }
 
-    if (!req.headers.authorization) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.json({
             code: 401, message: "请求头必填"
         });
     }
 
-    let token = req.headers.authorization;
-    if (token.indexOf('Bearer') >= 0) {
-        token = token.replace('Bearer ', '');
-    }
+    const token = authHeader.slice(7); // Remove 'Bearer ' prefix
 
     try {
         const flag = await verifyTokenUser(token);
-        console.log("flag", flag);
-
         if (!flag) {
             console.log('验证Token', token);
             return res.json({
@@ -58,12 +45,24 @@ const userJwt = async function (req, res, next) {
         }
 
         const tokenExists = await redisClient.exists(token);
-        console.log("token", token);
+        const tokenValue = await Token.findOne({where: {token: token}});
 
-        if (!tokenExists) {
+
+        if (!tokenExists || !tokenValue) {
             return res.json({
                 code: 401, message: "未找到该Token，可能是已过期"
             });
+        }
+
+        if (dayjs().isAfter(dayjs(tokenValue.expireTime))) {
+            return res.json({
+                code: 401, message: "Token 已过期"
+            });
+        }
+
+        if (dayjs(tokenValue.expireTime).diff(dayjs(), 'day') < 7) {
+            const redisToken = await RedisService.expire(token, 30, RedisService.TimeUnit.DAYS);
+            tokenValue.update({expireTime: dayjs().add(30, 'days').toDate()});
         }
 
         return next();

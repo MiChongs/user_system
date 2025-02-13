@@ -8,7 +8,7 @@ const multer = require('multer')
 const mkdirp = require('mkdirp')
 const moment = require('moment')
 const fs = require("fs");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const ejs = require('ejs');
 const Boom = require('@hapi/boom');
 const stringRandom = require('string-random');
@@ -18,7 +18,7 @@ const nowDate = moment().format('YYYY-MM-DD')
 const dayjs = require('dayjs');
 const emptinessCheck = require('emptiness-check');
 const nodemailer = require('nodemailer');
-const redis = require('redis');
+const Redis = require('ioredis');
 const {User} = require("../models/user");
 const {Log} = require("../models/log");
 const {AdminLog} = require("../models/adminLog");
@@ -29,30 +29,38 @@ exports.validUrl = require('valid-url');
 exports.http = require('http');
 exports.socketIO = require('socket.io');
 
-const redisClient = redis.createClient({
-    password: process.env.REDIS_PASSWORD, socket: {
-        host: process.env.REDIS_HOST,
-        port: process.env.REDIS_PORT,
-        connectTimeout: 10000,
-        keepAlive: true,
-        keepAliveInterval: 10000,
-        noDelay: true,
-        reconnectStrategy: function (times) {
-            return Math.min(times * 100, 2000);
-        }
+const onlineUsers = new Map();
+
+// 创建 Redis 客户端实例
+const redisClient = new Redis({
+    host: process.env.REDIS_HOST || '127.0.0.1',
+    port: process.env.REDIS_PORT || 6379,
+    password: process.env.REDIS_PASSWORD,
+    db: process.env.REDIS_DB || 0,
+    retryStrategy: (times) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
     }
 });
 
+// 错误处理
+redisClient.on('error', (err) => {
+    console.error('Redis Client Error:', err);
+});
+
+redisClient.on('connect', () => {
+    console.log('Redis Client Connected');
+});
 
 // 封装保存上传文件功能
 
-exports.adminPath = ['/login', '/resetPassword', '/sendMail', '/register', '/logout', /^\/public\/.*/, /^\/avatars\/.*/, /^\/static\/.*/, /^\/user_disk\/.*/, /^\/user_video\/.*/]
+exports.adminPath = ['/login', '/send-email-code','/users/search','/temp-users/list', '/captcha', '/resetPassword', '/sendMail', '/register', '/logout', /^\/public\/.*/, /^\/avatars\/.*/, /^\/static\/.*/, /^\/user_disk\/.*/, /^\/user_video\/.*/]
 
-exports.userPath = ['/ban-list','/login','/splash','/notice', '/devices-by-password', '/captcha', '/banner', '/logout-device-by-password', '/register', '/login_qq', '/sendMail', '/resetPassword', '/logout', '/logout', /^\/public\/.*/, /^\/avatars\/.*/, /^\/static\/.*/, /^\/user_disk\/.*/, /^\/user_video\/.*/]
+exports.userPath = ['/ban-list', '/login', '/splash', '/notice', '/devices-by-password', '/captcha', '/banner', '/logout-device-by-password', '/register', '/login_qq', '/sendMail', '/resetPassword', '/logout', '/logout', /^\/public\/.*/, /^\/avatars\/.*/, /^\/static\/.*/, /^\/user_disk\/.*/, /^\/user_video\/.*/]
 
-exports.adminAbsolutePath = ['/api/admin/login', '/api/admin/resetPassword', '/api/admin/sendMail', '/api/admin/register', '/api/admin/logout', /^\/public\/.*/, /^\/avatars\/.*/, /^\/static\/.*/, /^\/user_disk\/.*/, /^\/user_video\/.*/]
+exports.adminAbsolutePath = ['/api/admin/login','/api/app/users/search', '/api/admin/resetPassword', '/api/admin/sendMail', '/api/admin/register', '/api/admin/logout', /^\/public\/.*/, /^\/avatars\/.*/, /^\/static\/.*/, /^\/user_disk\/.*/, /^\/user_video\/.*/]
 
-exports.userAbsolutePath = ['/api/user/login', '/api/user/devices-by-password', '/api/user/logout-device-by-password', '/api/user/banner', '/api/user/captcha', '/api/user/register', '/api/user/login_qq', '/api/user/sendMail', '/api/user/resetPassword', '/api/user/logout', '/api/user/logout', /^\/public\/.*/, /^\/avatars\/.*/, /^\/static\/.*/, /^\/user_disk\/.*/, /^\/user_video\/.*/]
+exports.userAbsolutePath = ['/api/user/login','/api/temp-users/list', '/api/user/devices-by-password', '/api/user/logout-device-by-password', '/api/user/banner', '/api/user/captcha', '/api/user/register', '/api/user/login_qq', '/api/user/sendMail', '/api/user/resetPassword', '/api/user/logout', '/api/user/logout', /^\/public\/.*/, /^\/avatars\/.*/, /^\/static\/.*/, /^\/user_disk\/.*/, /^\/user_video\/.*/]
 
 exports.rolePath = ['/login', '/logout', /^\/public\/.*/, /^\/avatars\/.*/, /^\/static\/.*/, /^\/user_disk\/.*/, /^\/user_video\/.*/]
 
@@ -106,27 +114,37 @@ function isEmptyStr(s) {
 
 module.exports.isEmptyStr = isEmptyStr;
 
-exports.createAdminLog = async function (type, req, res, result) {
-    let string;
-    if (type === 'admin_login') {
-        string = logString(type, result.account, moment().format('YYYY-MM-DD HH:mm:ss'), req.clientIp, req.body.markcode)
-    } else if (type === 'admin_logout') {
-        string = logString(type, result.account, req.clientIp, req.body.markcode, moment().format('YYYY-MM-DD HH:mm:ss'))
-    } else {
-        string = logString(type, req.clientIp, req.body.markcode, moment().format('YYYY-MM-DD HH:mm:ss'))
+/**
+ * 格式化日志内容
+ */
+function logString(type, ...format) {
+    switch (type) {
+        case 'admin_login':
+            return stringFormat(
+                '管理员 %s 在 %s 登录系统\nIP: %s\n设备码: %s\n设备: %s',
+                ...format
+            );
+        case 'admin_logout':
+            return stringFormat(
+                '管理员 %s 从 %s 登出系统\n设备码: %s\n时间: %s\n设备: %s',
+                ...format
+            );
+        case 'admin_register':
+            return stringFormat(
+                'IP %s 使用设备码 %s 在 %s 注册管理员账号',
+                ...format
+            );
+        case 'admin_update':
+            return stringFormat(
+                '管理员 %s 在 %s 更新了信息\nIP: %s\n设备: %s',
+                ...format
+            );
+        default:
+            return stringFormat(
+                'IP %s 使用设备码 %s 在 %s 执行了未知操作',
+                ...format
+            );
     }
-    await AdminLog.create({
-        log_type: type,
-        log_content: string,
-        log_ip: req.clientIp,
-        log_time: moment().format('YYYY-MM-DD HH:mm:ss'),
-        log_user_id: result.account,
-    }).catch(err => {
-        res.status(500).json({
-            code: 500, msg: '创建管理员日志失败'
-        })
-        console.log(err)
-    })
 }
 
 // 上述代码是直接获取的IPV4地址，如果获取到的是IPV6，则通过字符串的截取来转换为IPV4地址。
@@ -138,12 +156,12 @@ function ipv6ToV4(ip) {
     return ip
 }
 
-exports.lookupAllGeoInfo = async function (ip) {
-    const url = `https://webapi-pc.meitu.com/common/ip_location?ip=${ip}`;
+async function lookupAllGeoInfo(ip) {
+    const url = `https://ipvx.netart.cn/?ip=${ip}`;
 
     try {
         const response = await axios.get(url);
-        const data = response.data.data[ip];
+        const data = response.data;
 
         if (!data) {
             throw new Error('No data found for the provided IP');
@@ -151,32 +169,32 @@ exports.lookupAllGeoInfo = async function (ip) {
 
         // 使用提供的 IP 数据模型结构
         const allInfo = {
-            area_code: data.area_code || '未知',
-            city: data.city || '未知',
-            city_id: data.city_id || 0,
-            continent: data.continent || '未知',
-            continent_code: data.continent_code || '未知',
-            country_id: data.country_id || 0,
-            isp: data.isp || '未知',
-            latitude: data.latitude || 0,
-            longitude: data.longitude || 0,
-            nation: data.nation || '未知',
-            nation_code: data.nation_code || '未知',
-            province: data.province || '未知',
-            province_id: data.province_id || 0,
-            subdivision_1_iso_code: data.subdivision_1_iso_code || '未知',
-            subdivision_1_name: data.subdivision_1_name || '未知',
-            subdivision_2_iso_code: data.subdivision_2_iso_code || '未知',
-            subdivision_2_name: data.subdivision_2_name || '未知',
-            time_zone: data.time_zone || '未知',
+            area_code: '未知',
+            city: data.regions[1] || '未知',
+            city_id: 0,
+            continent: '未知',
+            continent_code: '未知',
+            country_id: 0,
+            isp: data.as.name || '未知',
+            latitude: 0,  // The new API does not provide latitude
+            longitude: 0, // The new API does not provide longitude
+            nation: data.country.name || '未知',
+            nation_code: data.country.code || '未知',
+            province: data.regions[0] || '未知',
+            province_id: 0,
+            subdivision_1_iso_code: '未知',
+            subdivision_1_name: data.regions[2] || '未知',
+            subdivision_2_iso_code: '未知',
+            subdivision_2_name: '未知',
+            time_zone: '未知',
 
             // 额外参数
-            registeredCountryNameZh: data.nation || '未知',
-            countryIsoCode: data.nation_code || '未知',
-            provinceName: data.province || '未知',
-            cityNameZh: data.city || '未知',
-            autonomousSystemNumber: '未知',
-            autonomousSystemOrganization: data.isp || '未知'
+            registeredCountryNameZh: data.registered_country.name || '未知',
+            countryIsoCode: data.registered_country.code || '未知',
+            provinceName: data.regions[0] || '未知',
+            cityNameZh: data.regions[1] || '未知',
+            autonomousSystemNumber: data.as.number || '未知',
+            autonomousSystemOrganization: data.as.name || '未知'
         };
 
         return allInfo;
@@ -213,50 +231,100 @@ exports.lookupAllGeoInfo = async function (ip) {
         return allInfo;
     }
 };
-function logString(type, ...format) {
-    let content;
-    if (type === 'login') {
-        content = stringFormat('%s 使用设备码 %s 在 %s 进行登录', format[0], format[1], format[2])
-    } else if (type === 'register') {
-        content = stringFormat('IP 为 %s 使用设备码 %s 在 %s 进行注册', format[0], format[1], format[2])
-    } else if (type === 'admin_register') {
-        content = stringFormat('IP 为 %s 使用设备码 %s 在 %s 进行注册应用管理员', format[0], format[1], format[2])
-    } else if (type === 'logout') {
-        content = '{0} 使用设备码 {1} 在 {2} 进行登出'.stringFormat(format);
-    } else if (type === 'daily') {
-        content = stringFormat('IP 为 %s 使用设备码 %s 在 %s 进行签到', format[0], format[1], format[2])
-    } else if (type === 'logutDevice') {
-        content = '{0} 使用设备码 {1} 在 {2} 进行删除'.stringFormat(format);
-    } else if (type === 'card_use') {
-        content = stringFormat('%s 在 %s 使用了 %s 卡密', format[0], format[1], format[2]);
-    } else if (type === 'vip_time_add') {
-        content = stringFormat('%s 在 %s 使用了 %s 卡密,天数增加 %s 天,新到期时间:%s', format[0], format[1], format[2], format[3], format[4], format[5]);
-    } else if (type === 'integral_add') {
-        content = stringFormat('%s 在 %s 使用了 %s 卡密,积分增加 %s 个积分,新积分:%s', format[0], format[1], format[2], format[3], format[4], format[5]);
-    } else if (type === 'pay_vip') {
-        content = '{0} 在 {1} 充值了 {2} 会员'.stringFormat(format);
-    } else if (type === 'card_generate') {
-        content = '{0} 在 {1} 生成了 {2} 个卡密'.stringFormat(format);
-    } else if (type === 'card_delete') {
-        content = '{0} 在 {1} 删除了 {2} 个卡密'.stringFormat(format);
-    } else if (type === 'card_recharge') {
-        content = '{0} 在 {1} 充值了 {2} 个卡密'.stringFormat(format);
-    } else if (type === 'card_recharge_fail') {
-        content = '{0} 在 {1} 充值失败'.stringFormat(format);
-    } else if (type === 'admin_login') {
-        content = stringFormat('%s 在 %s 登录了后台, IP 地址为 %s，设备码为 %s', format[0], format[1], format[2], format[3]);
-    } else if (type === 'createApp') {
-        content = '管理员 {0} 在 {1} 创建了应用 {2}'.stringFormat(format);
-    } else if (type === 'deleteApp') {
-        content = '管理员 {0} 在 {1} 删除了应用 {2}'.stringFormat(format);
-    } else if (type === 'updateAppConfig') {
-        content = '管理员 {0} 在 {1} 更新了应用 {2}'.stringFormat(format);
-    } else if (type === 'updateUser') {
-        content = '管理员 {0} 在 {1} 更新了应用为 {2} 中用户 为 {3} 的信息'.stringFormat(format);
-    }
 
-    return content;
-}
+exports.lookupAllGeoInfo = lookupAllGeoInfo;
+
+/**
+ * 创建管理员日志
+ * @param {string} type 日志类型
+ * @param {object} req 请求对象
+ * @param {object} res 响应对象
+ * @param {object} result 结果数据
+ */
+exports.createAdminLog = async function (type, req, res, result) {
+    try {
+        // 获取IP地理位置信息
+        const geoInfo = await lookupAllGeoInfo(req.clientIp);
+        const location = `${geoInfo.provinceName || '未知'} ${geoInfo.cityNameZh || ''}`;
+        const isp = geoInfo.autonomousSystemOrganization || '未知';
+
+        let logContent;
+        switch (type) {
+            case 'admin_login':
+                logContent = logString(
+                    type,
+                    result.account,
+                    dayjs().format('YYYY-MM-DD HH:mm:ss'),
+                    `${req.clientIp} (${location} - ${isp})`,
+                    req.body.markcode,
+                    result.device || req.headers['user-agent']
+                );
+                break;
+            case 'admin_logout':
+                logContent = logString(
+                    type,
+                    result.account,
+                    `${req.clientIp} (${location} - ${isp})`,
+                    req.body.markcode,
+                    dayjs().format('YYYY-MM-DD HH:mm:ss'),
+                    result.device || req.headers['user-agent']
+                );
+                break;
+            default:
+                logContent = logString(
+                    type,
+                    `${req.clientIp} (${location} - ${isp})`,
+                    req.body.markcode,
+                    dayjs().format('YYYY-MM-DD HH:mm:ss')
+                );
+        }
+
+        // 创建日志记录
+        const logEntry = {
+            log_type: type,
+            log_content: logContent,
+            log_ip: req.clientIp,
+            log_time: dayjs().toDate(),
+            log_user_id: result.account,
+            log_location: location,
+            log_isp: isp,
+            log_device: result.device || req.headers['user-agent'],
+            log_markcode: req.body.markcode
+        };
+
+        // 保存到数据库
+        await AdminLog.create(logEntry);
+
+        // 缓存最近的日志
+        try {
+            const cacheKey = `admin_recent_logs:${result.account}`;
+            const recentLogs = await redisClient.get(cacheKey);
+            const logs = recentLogs ? JSON.parse(recentLogs) : [];
+            
+            logs.unshift({
+                ...logEntry,
+                log_time: dayjs(logEntry.log_time).format('YYYY-MM-DD HH:mm:ss')
+            });
+
+            // 只保留最近50条日志
+            if (logs.length > 50) {
+                logs.pop();
+            }
+
+            await redisClient.set(cacheKey, JSON.stringify(logs), 'EX', 86400); // 缓存24小时
+        } catch (cacheError) {
+            console.error('Redis cache error:', cacheError);
+        }
+
+    } catch (error) {
+        console.error('创建管理员日志失败:', error);
+        res.status(500).json({
+            code: 500,
+            message: '创建管理员日志失败',
+            error: process.env.NODE_ENV === 'development' ? error.message : '服务器内部错误'
+        });
+    }
+};
 
 /**
  * @description: 随机密码
@@ -339,6 +407,7 @@ exports.getToken = function (token) {
     }
     return newToken
 }
+module.exports.SANGBO_API_KEY = "mYuMro8V99nW0vpEgmpyUhyb1j";
 module.exports.crypto = crypto;
 module.exports.jwt = jwt;
 module.exports.upload = upload;
@@ -351,3 +420,4 @@ module.exports.emptinessCheck = emptinessCheck;
 module.exports.nodemailer = nodemailer;
 module.exports.ejs = ejs;
 module.exports.redisClient = redisClient;
+module.exports.onlineUsers = onlineUsers;

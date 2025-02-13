@@ -30,11 +30,11 @@ const User = mysql.define('User', {
             return moment(this.getDataValue('register_time')).format('YYYY-MM-DD HH:mm:ss');
         }
     }, register_province: {
-        type: DataTypes.STRING, comment: '用户注册省份'
+        type: DataTypes.TEXT, comment: '用户注册省份'
     }, register_city: {
-        type: DataTypes.STRING, comment: '用户注册城市'
+        type: DataTypes.TEXT, comment: '用户注册城市'
     }, register_isp: {
-        type: DataTypes.STRING, comment: '用户注册运营商'
+        type: DataTypes.TEXT, comment: '用户注册运营商'
     }, vip_time: {
         type: DataTypes.INTEGER, defaultValue: dayjs().unix(), comment: '用户会员到期时间'
     }, integral: {
@@ -67,6 +67,8 @@ const User = mysql.define('User', {
         type: DataTypes.STRING, allowNull: true, comment: '用户自定义ID', defaultValue: ''
     }, twoFactorSecret: {
         type: DataTypes.TEXT, allowNull: true, comment: '用户二次验证密钥'
+    }, experience: {
+        type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, comment: '用户经验值'
     }
 }, {
     // 这是其他模型参数

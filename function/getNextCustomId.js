@@ -43,20 +43,26 @@ async function getNextCustomId(appId, userId) {
 
     });
 
-    // 确保生成的ID是唯一的
-    while (await User.findOne({ where: { appid: appId, customId: nextCustomId.toString() } })) {
-        nextCustomId++;
-        attempts++;
-        if (attempts >= MAX_ATTEMPTS) {
-            // 生成一个唯一的随机字符串
-            let randomString;
-            do {
-                const length = Math.floor(Math.random() * (11 - 5 + 1)) + 5; // 随机长度在5到11之间
-                randomString = generateRandomString(length);
-            } while (await User.findOne({ where: { appid: appId, customId: randomString } }));
-
-            return randomString;
+    // Batch check for unique IDs
+    let isUnique = false;
+    while (!isUnique && attempts < MAX_ATTEMPTS) {
+        const existingUser = await User.findOne({ where: { appid: appId, customId: nextCustomId.toString() } });
+        if (!existingUser) {
+            isUnique = true;
+        } else {
+            nextCustomId++;
+            attempts++;
         }
+    }
+
+    if (attempts >= MAX_ATTEMPTS) {
+        let randomString;
+        do {
+            const length = Math.floor(Math.random() * (11 - 5 + 1)) + 5; // 随机长度在5到11之间
+            randomString = generateRandomString(length);
+        } while (await User.findOne({ where: { appid: appId, customId: randomString } }));
+
+        return randomString;
     }
 
     await Counter.update({ value: nextCustomId }, { where: { bindAppid: appId, bindUserid: userId } });

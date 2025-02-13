@@ -1,25 +1,17 @@
 const express = require("express");
 const userController = require("../controllers/userController");
-const {body, check} = require("express-validator");
+const {body, check, validationResult, param, query} = require("express-validator");
 const userRouter = express.Router();
 const globals = require("../global/index");
 const {expressjwt} = require("express-jwt");
-const {userPath} = require("../global");
-const userJwt = require("../middleware/userJwt");
-const {rateLimit} = require('express-rate-limit')
+const checkWhitelist = require('../function/checkWhiteList');
 const {App} = require("../models/app");
+const userJwt = require("../middleware/userJwt");
+const sanitizeInput = require("../middleware/sanitizeInput");
 
 const normalBodyValidator = [body('appid').notEmpty().withMessage("隶属于应用id不得为空").isInt().withMessage("应用id不符合要求"), body('account').notEmpty().withMessage("账号不得为空").isAscii().withMessage("账号不符合要求"), body('username').notEmpty().withMessage("用户名不得为空"), body('markcode').notEmpty().withMessage("设备码不得为空"), body('password').notEmpty().withMessage("密码不得为空").isLength({
     min: 8, max: 24
 }).withMessage("密码最少8位，最多24位")]
-
-const limiter = rateLimit({
-    windowMs: 60 * 1000, // 15 minutes
-    limit: 10, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers，
-    message: "请求过于频繁，请稍后再试",
-})
 
 userRouter.use(async (req, res, next) => {
     // 例如，对 /test 的 GET 请求将打印 GET /test
@@ -43,11 +35,13 @@ userRouter.use(async (req, res, next) => {
 userRouter.use(userJwt)
 const userBodyValidator = [body('appid').notEmpty().withMessage("隶属于应用id不得为空").isInt().withMessage("应用id不符合要求"), body('markcode').notEmpty().withMessage("设备码不得为空"),]
 
-userRouter.get("/list", userController.list);
-
-userRouter.post("/register", normalBodyValidator, userController.register);
+userRouter.post("/register", [
+    body('appid').notEmpty().withMessage('应用ID不能为空'),
+    body('account').notEmpty().withMessage('账号不能为空'),
+    body('password').notEmpty().withMessage('密码不能为空')
+], userController.register);
 userRouter.post("/devices", [body('appid').not().notEmpty().withMessage('隶属于应用id不得为空')], userController.devices);
-userRouter.post("/daily", limiter, userController.daily);
+userRouter.post("/daily", userController.daily);
 userRouter.post("/card/use", [body('appid').not().notEmpty().withMessage('隶属于应用id不得为空'), body('card_code').not().notEmpty().withMessage('卡密 不得为空')], userController.useCard);
 userRouter.delete('/logout', userBodyValidator, userController.logout)
 userRouter.delete('/logoutDevice', [body('appid').notEmpty().withMessage("隶属于应用id不得为空").isInt().withMessage("应用id不符合要求"), body('markcode').notEmpty().withMessage("设备码不得为空"), body('token').not().notEmpty().withMessage('Token 不得为空')], userController.deleteDevice)
@@ -122,9 +116,118 @@ userRouter.post('/ban-list', [check('appid').not().notEmpty().withMessage('隶�
 
 userRouter.post('/notice', [check('appid').not().notEmpty().withMessage('隶属于应用id不得为空')], userController.notice)
 
-userRouter.post('/splash', [check('appid').not().notEmpty().withMessage('隶属于应用id不得为空')], userController.splash)
+userRouter.post('/splash', [
+    body('appid').notEmpty().withMessage('应用ID不能为空')
+], userController.getActiveSplash);
+
 userRouter.get('/splash', [check('appid').not().notEmpty().withMessage('隶属于应用id不得为空')], userController.splash)
 
 userRouter.get('/notice', [check('appid').not().notEmpty().withMessage('隶属于应用id不得为空')], userController.notice)
 
-module.exports = userRouter;
+userRouter.get('/online-status', [
+    body('appid').notEmpty().withMessage('应用ID不能为空'),
+    body('userId').notEmpty().withMessage('用户ID不能为空')
+], userJwt, userController.getUserOnlineStatus);
+
+userRouter.get('/app-online-users', [
+    body('appid').notEmpty().withMessage('应用ID不能为空')
+], userJwt, userController.getAppOnlineUsers);
+
+userRouter.post('/set-online-status', [
+    check('appid').not().notEmpty().withMessage('隶属于应用id不得为空'),
+    check('targetUserId').not().notEmpty().withMessage('目标用户ID不能为空'),
+    check('status').isIn(['online', 'offline']).withMessage('状态必须为online或offline')
+], userController.setUserOnlineStatus);
+
+userRouter.get('/get_qq_info', [
+    check('appid').not().notEmpty().withMessage('隶属于应用id不得为空'),
+    check('qq').not().notEmpty().withMessage('QQ号不能为空'),
+    check('qq').isNumeric().withMessage('QQ号必须为数字')
+], userController.getQQInfo);
+
+// 快递查询
+userRouter.get('/query-express', [
+    check('appid').notEmpty().withMessage('隶属于应用id不得为空'),
+    check('dh').notEmpty().withMessage('快递单号不能为空')
+        .isString().withMessage('快递单号格式错误')
+], userController.queryExpress);
+
+// 音乐解析接口
+userRouter.get('/parse-music', [
+    check('appid').notEmpty().withMessage('隶属于应用id不得为空'),
+    check('url').notEmpty().withMessage('音乐链接不能为空')
+        .matches(/^https?:\/\/(y\.)?qq\.com/)
+        .withMessage('请输入有效的QQ音乐链接'),
+    check('quality').optional().isString()
+        .withMessage('音质参数格式错误')
+], userController.parseMusicUrl);
+
+// 获取音乐支持的音质列表
+userRouter.get('/music-qualities', [
+    check('appid').notEmpty().withMessage('隶属于应用id不得为空'),
+    check('url').notEmpty().withMessage('音乐链接不能为空')
+        .matches(/^https?:\/\/(y\.)?qq\.com/)
+        .withMessage('请输入有效的QQ音乐链接')
+], userController.getMusicQualities);
+
+// 下载QQ音乐
+userRouter.get('/download-music', [
+    check('appid').notEmpty().withMessage('隶属于应用id不得为空'),
+    check('url').notEmpty().withMessage('音乐链接不能为空')
+        .matches(/^https?:\/\/(y\.)?qq\.com/)
+        .withMessage('请输入有效的QQ音乐链接'),
+    check('quality').optional().isString()
+        .withMessage('音质参数格式错误')
+], userController.downloadMusic);
+
+userRouter.use(sanitizeInput);
+
+// Socket.IO 用户状态路由
+const {socketUserStatus} = require("../controllers/userController");
+/**
+ * 用户在线状态相关路由
+ */
+
+// 心跳检测
+userRouter.post('/heartbeat', [
+    body('appid').notEmpty().withMessage('应用ID不能为空')
+], userJwt, userController.heartbeat);
+// 获取在线用户统计
+
+// 获取用户在线状态
+userRouter.get('/online-status', [
+    body('appid').notEmpty().withMessage('应用ID不能为空'),
+    body('userId').notEmpty().withMessage('用户ID不能为空')
+], userJwt, userController.getUserOnlineStatus);
+
+// 获取应用在线用户列表
+userRouter.get('/online-users/:appid', userJwt, userController.getAppOnlineUsers);
+
+// 获取抽奖结果
+userRouter.get('/lottery/result/:lotteryId', [
+    param('lotteryId').notEmpty().withMessage('抽奖ID不能为空')
+        .matches(/^LT[a-f0-9]{16}$/).withMessage('无效的抽奖ID格式'),
+    query('appid').notEmpty().withMessage('应用ID不能为空')
+], userController.getLotteryResult);
+
+// 获取指定抽奖结果
+userRouter.get('/lottery/result/id/:lotteryId', [
+    param('lotteryId').notEmpty().withMessage('抽奖ID不能为空')
+        .matches(/^LT[a-f0-9]{16}$/).withMessage('无效的抽奖ID格式'),
+    query('appid').notEmpty().withMessage('应用ID不能为空')
+], userJwt, userController.getLotteryResultById);
+
+// 发送邮箱验证码
+userRouter.post('/email/send-code', [
+    body('email').isEmail().withMessage('邮箱格式不正确'),
+    body('appid').notEmpty().withMessage('应用ID不能为空')
+], userJwt, userController.sendEmailVerificationCode);
+
+// 绑定邮箱
+userRouter.post('/email/bind', [
+    body('email').isEmail().withMessage('邮箱格式不正确'),
+    body('code').isLength({ min: 6, max: 6 }).withMessage('验证码格式不正确'),
+    body('appid').notEmpty().withMessage('应用ID不能为空')
+], userJwt, userController.bindEmail);
+
+exports.userRouter = userRouter

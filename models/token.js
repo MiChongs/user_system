@@ -3,6 +3,7 @@ const {DataTypes} = require("sequelize");
 const moment = require("moment/moment");
 const {User} = require("./user");
 const {App} = require("./app");
+const dayjs = require("../function/dayjs");
 
 
 const Token = mysql.define('Token', {
@@ -28,7 +29,12 @@ const Token = mysql.define('Token', {
         type: DataTypes.STRING, comment: '设备名称', allowNull: true
     }, time: {
         type: DataTypes.DATE, defaultValue: DataTypes.NOW, comment: '登录时间', get() {
-            return moment(this.getDataValue('time')).format('YYYY-MM-DD HH:mm');
+            return dayjs(this.getDataValue('time')).format('YYYY-MM-DD HH:mm:ss');
+        }
+    },
+    expireTime: {
+        type: DataTypes.DATE, comment: '过期时间', allowNull: true, get() {
+            return dayjs(this.getDataValue('expireTime')).format('YYYY-MM-DD HH:mm:ss');
         }
     }
 })
